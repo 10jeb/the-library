@@ -1172,7 +1172,6 @@ const startRound = () => {
   canvas.classList.add("aim");
   goTo(mode.home(), 900);
   showReadout(null);
-  snapshot();
 };
 
 const placePin = v => {
@@ -1209,7 +1208,6 @@ const lockIn = () => {
   const frame = mode.reveal(f, guess, res);
   goTo({ ...frame, ...offsets() }, 1300);
   $("b-next").focus({ preventScroll: true });
-  snapshot();
 };
 
 const next = () => { if (state !== "revealed") return; idx++; if (idx < ROUNDS) startRound(); else finish(); };
@@ -1231,7 +1229,6 @@ const finish = () => {
   $("summary").hidden = false;
   $("b-again").focus({ preventScroll: true });
   goTo({ ...mode.home(), offX: 0, offY: 0 }, 1600);
-  snapshot();
 };
 
 $("b-lock").onclick = lockIn;
@@ -1282,8 +1279,6 @@ const loop = now => {
 /* ======================================================================
    Boot + persistence across live updates
    ====================================================================== */
-const snapshot = () => window.claude?.hot?.snapshot?.(() => ({ mode: mode.id, names: rounds.map(f => f.name), done: results.map(r => ({ name: r.f.name, pts: r.pts, log: r.log })) }));
-
 const start = data => {
   const want = data?.mode || store.get("selenographer-mode") || "moon";
   const restoreFor = id => {
@@ -1313,7 +1308,7 @@ const start = data => {
     .catch(() => { if (mode === skyM) $("loading").textContent = "The star catalog didn't load. Reload the page to try again."; });
   requestAnimationFrame(loop);
 };
-window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+start({});
 })();
 </script>
 
