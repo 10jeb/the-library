@@ -1,0 +1,556 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Dial In</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: settings row, one instrument card (target, dial, result, action), round tracker, then the daily leaderboard */
+:root{
+  --bg:#e9edf2;
+  --face:#f8fafc;
+  --ink:#16202e;
+  --muted:#5b6778;
+  --rule:#c9d1dc;
+  --p1:#d9480f;
+  --p2:#3b5bdb;
+  --target:#1c7c6d;
+  --track:#dfe5ec;
+  --good:#1c7c6d; --ok:#b7791f; --bad:#c2410c;
+  --font-display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
+  --font-body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f151d;--face:#18212c;--ink:#e6ebf1;--muted:#93a0b2;--rule:#2c3a4b;
+  --p1:#ff7a3d;--p2:#8199ff;--target:#3fbfa8;--track:#223040;
+  --good:#3fbfa8;--ok:#e3a83c;--bad:#ff7a3d;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f151d;--face:#18212c;--ink:#e6ebf1;--muted:#93a0b2;--rule:#2c3a4b;
+  --p1:#ff7a3d;--p2:#8199ff;--target:#3fbfa8;--track:#223040;
+  --good:#3fbfa8;--ok:#e3a83c;--bad:#ff7a3d;color-scheme:dark}
+
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:24px;box-sizing:border-box;display:flex;justify-content:center;align-items:flex-start}
+.wrap{width:100%;max-width:560px;display:flex;flex-direction:column;gap:16px}
+header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--font-display);font-weight:900;font-size:2rem;letter-spacing:.02em;text-transform:uppercase;margin:0;line-height:1}
+.meta{font-family:var(--font-mono);font-size:.8rem;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
+.meta b{color:var(--ink);font-weight:500}
+.meta .p1 b{color:var(--p1)} .meta .p2 b{color:var(--p2)}
+.meta .tag{border:1px solid var(--rule);border-radius:999px;padding:0 8px}
+.meta .tag.ranked{border-color:var(--target);color:var(--target)}
+
+.settings{display:flex;gap:12px 20px;flex-wrap:wrap;align-items:center}
+.group{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.group > span{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:999px;padding:3px;background:var(--face)}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{padding:5px 12px;border-radius:999px;font-size:.88rem;font-weight:500;color:var(--muted);cursor:pointer;white-space:nowrap}
+.seg input:checked + label{background:var(--ink);color:var(--face)}
+.seg input:focus-visible + label{outline:2px solid var(--p1);outline-offset:1px}
+.names{display:flex;gap:10px;flex-wrap:wrap;width:100%}
+.names label{display:flex;align-items:center;gap:8px;flex:1 1 180px;min-width:0}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.dot.p1{background:var(--p1)}.dot.p2{background:var(--p2)}
+.names input{flex:1;min-width:0;font:500 .95rem var(--font-body);color:var(--ink);background:var(--face);border:1px solid var(--rule);border-radius:8px;padding:6px 10px}
+.names input:focus-visible{outline:2px solid var(--p1);outline-offset:1px}
+
+.card{background:var(--face);border:1px solid var(--rule);border-radius:18px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:8px}
+.label{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600;text-align:center}
+.label .who.p1{color:var(--p1)}.label .who.p2{color:var(--p2)}
+.target{font-family:var(--font-display);font-weight:900;font-size:clamp(4rem,18vw,6.5rem);line-height:.9;font-variant-numeric:tabular-nums;color:var(--ink);text-align:center;max-width:100%;overflow-wrap:anywhere}
+.target small{font-size:.45em;color:var(--muted);margin-left:2px}
+.target.win-p1{color:var(--p1)}.target.win-p2{color:var(--p2)}
+.target.word{font-size:clamp(3rem,13vw,4.6rem)}
+
+.dial{width:100%;max-width:440px;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;outline:none;border-radius:12px}
+.dial.tall{max-width:360px}
+.dial.dragging{cursor:grabbing}
+.dial.idle{cursor:default}
+.dial:focus-visible{box-shadow:0 0 0 3px color-mix(in srgb,var(--p1) 45%,transparent)}
+.dial .arc{fill:none;stroke:var(--track);stroke-width:26}
+.dial .tick{stroke:var(--muted);stroke-width:2}
+.dial .end{font-family:var(--font-mono);font-size:14px;fill:var(--muted)}
+.dial .hintline{fill:none;stroke:var(--muted);stroke-width:2}
+.dial .hintdot{fill:var(--muted)}
+.dial .n1{stroke:var(--p1)} .dial .g1{fill:var(--p1)}
+.dial .n2{stroke:var(--p2)} .dial .g2{fill:var(--p2)}
+.dial .needle{stroke-width:5;stroke-linecap:round}
+.dial .hub{fill:var(--ink)}
+.dial .hubcap{fill:var(--face)}
+.dial .ghost{stroke:var(--target);stroke-width:4;stroke-linecap:round;stroke-dasharray:2 8}
+.dial .wedge{fill:color-mix(in srgb,var(--p1) 22%,transparent)}
+
+.result{min-height:3.4em;display:flex;align-items:center;justify-content:center;text-align:center;gap:14px 22px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
+.result .hint{color:var(--muted);font-size:.95rem;max-width:42ch}
+.stat{display:flex;flex-direction:column;align-items:center}
+.stat span{font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.stat b{font-family:var(--font-mono);font-weight:500;font-size:1.1rem}
+.pts{font-family:var(--font-display);font-weight:900;font-size:2rem;line-height:1}
+.pts.good{color:var(--good)}.pts.ok{color:var(--ok)}.pts.bad{color:var(--bad)}
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;max-width:420px}
+.pcol{border:1px solid var(--rule);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0}
+.pcol.lead{border-color:currentColor}
+.pcol.p1{color:var(--p1)}.pcol.p2{color:var(--p2)}
+.pcol .nm{font-weight:600;font-size:.9rem;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pcol .ln{font-family:var(--font-mono);font-size:.82rem;color:var(--muted)}
+.pcol .pts{font-size:1.7rem}
+.note{flex-basis:100%;font-size:.85rem;color:var(--muted)}
+.note.ok{color:var(--good)}.note.err{color:var(--bad)}
+
+.btn{font:600 1rem var(--font-body);border:0;border-radius:999px;padding:12px 30px;background:var(--ink);color:var(--face);cursor:pointer;min-width:200px;max-width:100%}
+.btn:hover{opacity:.88}
+.btn:focus-visible{outline:3px solid var(--p1);outline-offset:3px}
+.btn.p1{background:var(--p1);color:#fff}.btn.p2{background:var(--p2);color:#fff}
+
+.rounds{display:grid;grid-template-columns:auto repeat(10,1fr);gap:6px;align-items:center}
+.rlabel{font-size:.72rem;font-weight:600;letter-spacing:.06em;color:var(--muted);max-width:5.5em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:2px}
+.rlabel.p1{color:var(--p1)}.rlabel.p2{color:var(--p2)}
+.pip{height:32px;border-radius:6px;border:1px solid var(--rule);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:.72rem;color:var(--muted);font-variant-numeric:tabular-nums;min-width:0}
+.pip.now{border-color:var(--ink);color:var(--ink)}
+.pip.good{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good);border-color:transparent}
+.pip.ok{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok);border-color:transparent}
+.pip.bad{background:color-mix(in srgb,var(--bad) 18%,transparent);color:var(--bad);border-color:transparent}
+
+.board{background:var(--face);border:1px solid var(--rule);border-radius:18px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.board-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.board h2{font-family:var(--font-display);font-weight:700;font-size:1.35rem;text-transform:uppercase;letter-spacing:.03em;margin:0;line-height:1.1}
+.board .sub{font-size:.8rem;color:var(--muted)}
+.board ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.board li{display:grid;grid-template-columns:2em 28px 1fr auto;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--rule)}
+.board li:first-child{border-top:0}
+.board .rk{font-family:var(--font-mono);font-size:.85rem;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.board img{width:28px;height:28px;border-radius:50%;display:block}
+.board .who{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.board .you{font-size:.72rem;color:var(--muted);margin-left:6px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.board .sc{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-weight:500}
+.board li.me .who,.board li.me .sc{color:var(--target)}
+.board .empty{color:var(--muted);font-size:.92rem;margin:0}
+.how{color:var(--muted);font-size:.85rem;margin:0;text-align:center}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Dial In</h1>
+    <div class="meta" id="meta"></div>
+  </header>
+
+  <div class="settings">
+    <div class="group"><span>Dial</span>
+      <div class="seg" role="radiogroup" aria-label="Dial shape">
+        <input type="radio" name="dial" id="dial-half" value="half" checked><label for="dial-half">Half circle</label>
+        <input type="radio" name="dial" id="dial-circle" value="circle"><label for="dial-circle">Circle</label>
+        <input type="radio" name="dial" id="dial-square" value="square"><label for="dial-square">Square</label>
+      </div>
+    </div>
+    <div class="group"><span>Mode</span>
+      <div class="seg" role="radiogroup" aria-label="Game mode">
+        <input type="radio" name="mode" id="mode-solo" value="solo" checked><label for="mode-solo">Solo</label>
+        <input type="radio" name="mode" id="mode-duel" value="duel"><label for="mode-duel">Pass &amp; play</label>
+        <input type="radio" name="mode" id="mode-daily" value="daily"><label for="mode-daily">Daily challenge</label>
+      </div>
+    </div>
+    <div class="names" id="names" hidden>
+      <label><span class="dot p1"></span><input id="name1" maxlength="14" value="Player 1" aria-label="Player 1 name"></label>
+      <label><span class="dot p2"></span><input id="name2" maxlength="14" value="Player 2" aria-label="Player 2 name"></label>
+    </div>
+  </div>
+
+  <section class="card">
+    <div class="label" id="promptLabel">Set the dial to</div>
+    <div class="target" id="target">63<small>%</small></div>
+    <svg class="dial" id="dial" role="slider" tabindex="0"
+         aria-label="Dial. Drag, or use arrow keys to turn." aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"></svg>
+    <div class="result" id="result" aria-live="polite"></div>
+    <button class="btn" id="action" type="button">Lock in</button>
+  </section>
+
+  <div class="rounds" id="rounds" aria-label="Round scores"></div>
+
+  <section class="board" id="board" hidden>
+    <div class="board-head">
+      <h2 id="boardTitle">Today's leaderboard</h2>
+      <span class="sub" id="boardSub"></span>
+    </div>
+    <ol id="boardList"></ol>
+    <p class="empty" id="boardEmpty">No scores yet today. Finish a run to post the first one.</p>
+  </section>
+
+  <p class="how" id="how"></p>
+</div>
+
+<script>
+(function(){
+  const ROUNDS=10, SVGNS='http://www.w3.org/2000/svg';
+  const $=id=>document.getElementById(id);
+  const dial=$('dial');
+
+  // ---------- dial geometry ----------
+  // Each dial maps a value 0–100 to a point, and a pointer position back to a value.
+  const GEO={
+    half:{label:'Half circle',vw:400,vh:230,cx:200,cy:200,r:160,needle:148,ghost:176,wrap:false,
+      pt(v,r){const t=Math.PI*(1-v/100);return [this.cx+r*Math.cos(t),this.cy-r*Math.sin(t)];},
+      fromXY(x,y){let t=Math.atan2(y,x);if(t<0)t=(x>=0)?0:Math.PI;return (1-t/Math.PI)*100;},
+      corners:[],deg:1.8},
+    circle:{label:'Circle',vw:400,vh:400,cx:200,cy:206,r:150,needle:136,ghost:166,wrap:true,
+      pt(v,r){const p=2*Math.PI*v/100;return [this.cx+r*Math.sin(p),this.cy-r*Math.cos(p)];},
+      fromXY(x,y){let p=Math.atan2(x,y);if(p<0)p+=2*Math.PI;return p/(2*Math.PI)*100;},
+      corners:[],deg:3.6},
+    square:{label:'Square',vw:400,vh:400,cx:200,cy:206,r:150,needle:150,ghost:170,wrap:true,
+      // Travels the perimeter by distance: starts top-centre, runs clockwise.
+      pt(v,h){const d=(v/100)*8*h,cx=this.cx,cy=this.cy;
+        if(d<=h)return [cx+d,cy-h];
+        if(d<=3*h)return [cx+h,cy-h+(d-h)];
+        if(d<=5*h)return [cx+h-(d-3*h),cy+h];
+        if(d<=7*h)return [cx-h,cy+h-(d-5*h)];
+        return [cx-h+(d-7*h),cy-h];},
+      fromXY(x,y){const sx=x,sy=-y,m=Math.max(Math.abs(sx),Math.abs(sy));if(!m)return null;
+        const px=sx/m,py=sy/m;let d;
+        if(Math.abs(py)>=Math.abs(px)){ d = py<0 ? (px>=0? px : 7+(px+1)) : 3+(1-px); }
+        else { d = px>0 ? 1+(py+1) : 5+(1-py); }
+        return d/8*100;},
+      corners:[12.5,37.5,62.5,87.5]}
+  };
+
+  const cfg={dial:'half',mode:'solo'};
+  const st={round:1,target:0,targets:null,phase:'aim',order:[0],turn:0,value:50,guesses:[null,null],scores:[0,0],history:[],dayKey:'',post:null};
+  const els={};
+  const g=()=>GEO[cfg.dial];
+
+  function el(tag,attrs){const e=document.createElementNS(SVGNS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);dial.appendChild(e);return e;}
+  function topMarks(G){
+    el('line',{class:'tick',x1:G.cx,y1:G.cy-G.r-13,x2:G.cx,y2:G.cy-G.r+13});
+    el('text',{class:'end',x:G.cx-8,y:G.cy-G.r-20,'text-anchor':'end'}).textContent='100%';
+    el('text',{class:'end',x:G.cx+8,y:G.cy-G.r-20,'text-anchor':'start'}).textContent='0%';
+  }
+  function buildDial(){
+    const G=g();dial.innerHTML='';
+    dial.setAttribute('viewBox',`0 0 ${G.vw} ${G.vh}`);
+    dial.classList.toggle('tall',cfg.dial!=='half');
+    if(cfg.dial==='half'){
+      el('path',{class:'arc',d:`M ${G.cx-G.r} ${G.cy} A ${G.r} ${G.r} 0 0 1 ${G.cx+G.r} ${G.cy}`});
+      el('line',{class:'tick',x1:G.cx-G.r-13,y1:G.cy,x2:G.cx-G.r+13,y2:G.cy});
+      el('line',{class:'tick',x1:G.cx+G.r-13,y1:G.cy,x2:G.cx+G.r+13,y2:G.cy});
+      el('text',{class:'end',x:G.cx-G.r,y:G.cy+24,'text-anchor':'middle'}).textContent='0%';
+      el('text',{class:'end',x:G.cx+G.r,y:G.cy+24,'text-anchor':'middle'}).textContent='100%';
+    }else if(cfg.dial==='circle'){
+      el('circle',{class:'arc',cx:G.cx,cy:G.cy,r:G.r});
+      topMarks(G);
+      const R=G.r+24,[ax,ay]=G.pt(5,R),[bx,by]=G.pt(10,R);
+      el('path',{class:'hintline',d:`M ${ax} ${ay} A ${R} ${R} 0 0 1 ${bx} ${by}`});
+      el('circle',{class:'hintdot',cx:bx,cy:by,r:3});
+    }else{
+      el('rect',{class:'arc',x:G.cx-G.r,y:G.cy-G.r,width:2*G.r,height:2*G.r});
+      topMarks(G);
+      const R=G.r+24,[ax,ay]=G.pt(4,R),[bx,by]=G.pt(8,R);
+      el('path',{class:'hintline',d:`M ${ax} ${ay} L ${bx} ${by}`});
+      el('circle',{class:'hintdot',cx:bx,cy:by,r:3});
+    }
+    els.wedge=el('path',{class:'wedge',d:''});
+    els.ghost=el('line',{class:'ghost',x1:G.cx,y1:G.cy,x2:G.cx,y2:G.cy});
+    els.n=[0,1].map(i=>el('line',{class:`needle n${i+1}`,x1:G.cx,y1:G.cy,x2:G.cx,y2:G.cy}));
+    els.grip=[0,1].map(i=>el('circle',{class:`g${i+1}`,r:9,cx:G.cx,cy:G.cy}));
+    el('circle',{class:'hub',cx:G.cx,cy:G.cy,r:14});
+    el('circle',{class:'hubcap',cx:G.cx,cy:G.cy,r:5});
+  }
+  function setNeedle(i,v,show,grip){
+    const G=g();const [x,y]=G.pt(v,G.needle);
+    els.n[i].setAttribute('x2',x);els.n[i].setAttribute('y2',y);
+    els.grip[i].setAttribute('cx',x);els.grip[i].setAttribute('cy',y);
+    els.n[i].style.display=show?'':'none';els.grip[i].style.display=show&&grip?'':'none';
+  }
+  function setGhost(v,show){const G=g();const [x,y]=G.pt(v,G.ghost);els.ghost.setAttribute('x2',x);els.ghost.setAttribute('y2',y);els.ghost.style.display=show?'':'none';}
+  function setWedge(a,b,show){
+    const G=g(),lo=Math.min(a,b),hi=Math.max(a,b),rr=G.r+13;
+    if(!show||hi-lo<0.3||hi-lo>=99.9){els.wedge.style.display='none';return;}
+    let d;
+    if(cfg.dial==='square'){
+      const pts=[G.pt(lo,rr),...G.corners.filter(c=>c>lo&&c<hi).map(c=>G.pt(c,rr)),G.pt(hi,rr)];
+      d=`M ${G.cx} ${G.cy} `+pts.map(p=>`L ${p[0]} ${p[1]}`).join(' ')+' Z';
+    }else{
+      const [x1,y1]=G.pt(lo,rr),[x2,y2]=G.pt(hi,rr),large=(hi-lo)*G.deg>180?1:0;
+      d=`M ${G.cx} ${G.cy} L ${x1} ${y1} A ${rr} ${rr} 0 ${large} 1 ${x2} ${y2} Z`;
+    }
+    els.wedge.setAttribute('d',d);els.wedge.style.display='';
+  }
+
+  // ---------- helpers ----------
+  const fmt=v=>(Math.round(v*10)/10).toFixed(1);
+  const names=()=>[$('name1').value.trim()||'Player 1',$('name2').value.trim()||'Player 2'];
+  const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const grade=p=>p>=85?'good':p>=55?'ok':'bad';
+  const ptsFor=(guess,target)=>Math.max(0,Math.round(100-Math.abs(guess-target)*4));
+  const bestKey=()=>'dialin-best-'+cfg.dial;
+  function readBest(){try{const b=localStorage.getItem(bestKey());return b===null?null:+b}catch(e){return null}}
+  function writeBest(v){try{localStorage.setItem(bestKey(),String(v))}catch(e){}}
+  const players=()=>cfg.mode==='duel'?2:1;
+  const cur=()=>st.order[st.turn];
+  const utcDay=()=>new Date().toISOString().slice(0,10);
+  const runKey=()=>cfg.dial+'_'+st.dayKey;
+  function resetTimeText(){const n=new Date();const r=new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate()+1));
+    return r.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});}
+
+  // Seeded targets: everyone gets the same 10 for a given day and dial.
+  function seededTargets(seedStr){
+    let h=1779033703^seedStr.length;
+    for(let i=0;i<seedStr.length;i++){h=Math.imul(h^seedStr.charCodeAt(i),3432918353);h=h<<13|h>>>19;}
+    let a=h>>>0;
+    const rnd=()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};
+    const out=[];while(out.length<ROUNDS){const t=Math.floor(rnd()*101);if(!out.length||Math.abs(t-out[out.length-1])>=8)out.push(t);}
+    return out;
+  }
+  function randomTarget(){let t;const last=st.history.length?st.history[st.history.length-1].target:null;
+    do{t=Math.floor(Math.random()*101)}while(last!==null&&Math.abs(t-last)<8);return t;}
+
+  // ---------- online (daily challenge) ----------
+  const net={state:'loading',db:null,user:null,myId:null,docs:[],myRuns:{}};
+  // state: loading | ready | offline | error
+  (async()=>{
+    const c=window.claude;
+    if(!c||typeof c.use!=='function'){net.state='offline';renderBoard();return;}
+    try{
+      const [db,user]=await Promise.all([c.use('db'),c.use('user')]);
+      net.user=user;
+      net.myId=user?await user.id():null;
+      if(!db||!net.myId){net.state='offline';renderBoard();render();return;}
+      net.db=db;net.state='ready';
+      db.collection('scores').onSnapshot(snap=>{
+        net.docs=snap.docs.filter(d=>d.exists).map(d=>{const b=d.data()||{};return {id:d.id,runs:(b.runs&&typeof b.runs==='object')?b.runs:{}};});
+        const mine=net.docs.find(d=>d.id===net.myId);
+        if(mine)net.myRuns=Object.assign({},mine.runs);
+        renderBoard();if(cfg.mode==='daily')render();
+      },()=>{net.state='error';renderBoard();});
+    }catch(e){net.state='offline';renderBoard();}
+  })();
+  const alreadyPlayed=()=>!!net.myRuns[runKey()];
+
+  async function postScore(score){
+    if(net.state!=='ready'){st.post='offline';render();return;}
+    if(alreadyPlayed()){st.post='practice';render();return;}
+    const runs=Object.assign({},net.myRuns,{[runKey()]:{score,at:new Date().toISOString()}});
+    const cutoff=new Date(Date.now()-14*864e5).toISOString().slice(0,10);
+    for(const k of Object.keys(runs)){const day=k.split('_')[1]||'';if(day<cutoff)delete runs[k];}
+    st.post='posting';render();
+    try{
+      await net.db.doc('scores/'+net.myId).set({runs});
+      net.myRuns=runs;st.post='posted';
+    }catch(e){st.post=(e&&e.code==='invalid_argument')?'denied':'failed';}
+    render();renderBoard();
+  }
+
+  let boardToken=0;
+  async function renderBoard(){
+    const box=$('board');box.hidden=cfg.mode!=='daily';
+    if(box.hidden)return;
+    const token=++boardToken;
+    $('boardTitle').textContent="Today's leaderboard";
+    $('boardSub').textContent=`${g().label} · new targets at ${resetTimeText()}`;
+    const list=$('boardList'),empty=$('boardEmpty');
+    if(net.state!=='ready'){
+      list.innerHTML='';empty.hidden=false;
+      empty.textContent=net.state==='loading'?'Loading scores…':
+        net.state==='error'?'The leaderboard stopped updating. Reload the page to reconnect.':
+        'Sign in to claude.ai to see and post scores. You can still play today’s targets.';
+      return;
+    }
+    const key=runKey();
+    const rows=net.docs.filter(d=>d.runs[key]&&typeof d.runs[key].score==='number')
+      .map(d=>({id:d.id,score:d.runs[key].score,at:String(d.runs[key].at||'')}))
+      .sort((a,b)=>b.score-a.score||a.at.localeCompare(b.at));
+    let profiles={};
+    if(rows.length&&net.user){try{profiles=await net.user.profiles(rows.map(r=>r.id));}catch(e){}}
+    if(token!==boardToken)return;
+    list.innerHTML='';empty.hidden=rows.length>0;
+    empty.textContent='No scores yet today. Finish a run to post the first one.';
+    let rank=0,prev=null;
+    rows.forEach((r,i)=>{
+      if(r.score!==prev){rank=i+1;prev=r.score;}
+      const p=profiles[r.id]||{};
+      const li=document.createElement('li');if(r.id===net.myId)li.className='me';
+      const rk=document.createElement('span');rk.className='rk';rk.textContent=rank;
+      const img=document.createElement('img');img.alt='';if(p.avatarUrl)img.src=p.avatarUrl;
+      const who=document.createElement('span');who.className='who';who.textContent=p.name||'Player';
+      if(r.id===net.myId){const y=document.createElement('span');y.className='you';y.textContent='you';who.appendChild(y);}
+      const sc=document.createElement('span');sc.className='sc';sc.textContent=r.score;
+      li.append(rk,img,who,sc);list.appendChild(li);
+    });
+  }
+
+  // ---------- game flow ----------
+  function newGame(){
+    st.round=1;st.scores=[0,0];st.history=[];st.post=null;
+    st.dayKey=utcDay();
+    st.targets=cfg.mode==='daily'?seededTargets('dialin|'+cfg.dial+'|'+st.dayKey):null;
+    buildDial();startRound();renderBoard();
+  }
+  function startRound(){
+    st.target=st.targets?st.targets[st.round-1]:randomTarget();
+    st.guesses=[null,null];
+    st.order=players()===1?[0]:(st.round%2?[0,1]:[1,0]);
+    st.turn=0;st.value=50;st.phase='aim';render();
+  }
+  function act(){
+    if(st.phase==='aim'){
+      st.guesses[cur()]=st.value;
+      if(st.turn<st.order.length-1){st.phase='handoff';render();return;}
+      const pts=[0,1].map(i=>st.guesses[i]===null?null:ptsFor(st.guesses[i],st.target));
+      pts.forEach((p,i)=>{if(p!==null)st.scores[i]+=p;});
+      st.history.push({target:st.target,guesses:st.guesses.slice(),pts});
+      st.phase='reveal';render();return;
+    }
+    if(st.phase==='handoff'){st.turn++;st.value=50;st.phase='aim';render();return;}
+    if(st.phase==='reveal'){
+      if(st.round>=ROUNDS){
+        st.phase='done';
+        if(cfg.mode==='solo'){const b=readBest();st.newBest=b===null||st.scores[0]>b;if(st.newBest)writeBest(st.scores[0]);}
+        render();
+        if(cfg.mode==='daily')postScore(st.scores[0]);
+        return;
+      }
+      st.round++;startRound();return;
+    }
+    if(st.phase==='done')newGame();
+  }
+
+  // ---------- render ----------
+  function render(){
+    const N=names(),duel=cfg.mode==='duel',daily=cfg.mode==='daily',p=cur();
+    let meta=`<span>Round <b>${Math.min(st.round,ROUNDS)}</b>/${ROUNDS}</span>`;
+    if(duel)meta+=`<span class="p1">${esc(N[0])} <b>${st.scores[0]}</b></span><span class="p2">${esc(N[1])} <b>${st.scores[1]}</b></span>`;
+    else if(daily){meta+=`<span>Score <b>${st.scores[0]}</b></span>`;
+      if(net.state==='ready')meta+=alreadyPlayed()&&st.post!=='posted'?'<span class="tag">Practice</span>':'<span class="tag ranked">Ranked</span>';}
+    else{const best=readBest();meta+=`<span>Score <b>${st.scores[0]}</b></span><span>Best <b>${best===null?'–':best}</b></span>`;}
+    $('meta').innerHTML=meta;
+    $('names').hidden=!duel;
+    $('how').textContent=
+      (cfg.dial==='circle'?'0% is at the top; the needle runs clockwise all the way round to 100%. ':'')+
+      (cfg.dial==='square'?'The needle tip travels the square’s edge, starting at the top centre and running clockwise. Percent is distance along the edge, so each corner sits between quarter marks. ':'')+
+      (duel?'Both players get the same target. Pass the device between turns; who goes first alternates each round. ':'')+
+      (daily?'Everyone gets the same 10 targets today for each dial. Your first finished run counts; replays are practice. ':'')+
+      '100 points for a dead-on match, minus 4 per percentage point off. Arrow keys nudge by 1, Shift+arrow by 10.';
+
+    const label=$('promptLabel'),target=$('target'),result=$('result'),btn=$('action');
+    target.className='target';btn.className='btn';
+    dial.classList.toggle('idle',st.phase!=='aim');
+    setGhost(st.target,false);setWedge(0,0,false);setNeedle(0,50,false);setNeedle(1,50,false);
+
+    if(st.phase==='aim'){
+      label.innerHTML=duel?`<span class="who p${p+1}">${esc(N[p])}</span> · set the dial to`:(daily?'Daily challenge · set the dial to':'Set the dial to');
+      target.innerHTML=st.target+'<small>%</small>';
+      setNeedle(p,st.value,true,true);
+      result.innerHTML='<span class="hint">Drag the needle, then lock in your guess.</span>';
+      btn.textContent='Lock in';if(duel)btn.classList.add('p'+(p+1));
+      dial.setAttribute('aria-valuetext','Position hidden until you lock in');
+      dial.setAttribute('aria-valuenow',Math.round(st.value));
+    }else if(st.phase==='handoff'){
+      const nx=st.order[st.turn+1];
+      label.innerHTML=`<span class="who p${p+1}">${esc(N[p])}</span> locked in`;
+      target.innerHTML=st.target+'<small>%</small>';
+      result.innerHTML=`<span class="hint">Pass the device to ${esc(N[nx])}. Their guess stays hidden until both are in.</span>`;
+      btn.textContent=`Start ${N[nx]}'s turn`;btn.classList.add('p'+(nx+1));
+    }else if(st.phase==='reveal'){
+      const h=st.history[st.history.length-1];
+      label.textContent='Target was';
+      target.innerHTML=st.target+'<small>%</small>';
+      setGhost(st.target,true);
+      if(!duel){
+        setNeedle(0,h.guesses[0],true,false);setWedge(h.guesses[0],st.target,true);
+        result.innerHTML=`<div class="stat"><span>You set</span><b>${fmt(h.guesses[0])}%</b></div>`+
+          `<div class="stat"><span>Off by</span><b>${fmt(Math.abs(h.guesses[0]-st.target))}</b></div><div class="pts ${grade(h.pts[0])}">+${h.pts[0]}</div>`;
+      }else{
+        setNeedle(0,h.guesses[0],true,false);setNeedle(1,h.guesses[1],true,false);
+        const lead=h.pts[0]===h.pts[1]?-1:(h.pts[0]>h.pts[1]?0:1);
+        result.innerHTML='<div class="duo">'+[0,1].map(i=>
+          `<div class="pcol p${i+1}${lead===i?' lead':''}"><span class="nm">${esc(N[i])}${lead===i?' wins round':''}</span>`+
+          `<span class="ln">set ${fmt(h.guesses[i])}% · off ${fmt(Math.abs(h.guesses[i]-st.target))}</span>`+
+          `<span class="pts ${grade(h.pts[i])}">+${h.pts[i]}</span></div>`).join('')+'</div>';
+      }
+      dial.setAttribute('aria-valuetext','Target '+st.target+' percent');
+      btn.textContent=st.round>=ROUNDS?'See final score':'Next round';
+    }else{
+      if(!duel){
+        label.textContent=cfg.mode==='solo'&&st.newBest?'New best score':'Final score';
+        target.innerHTML=st.scores[0]+'<small>/1000</small>';
+        const errs=st.history.map(h=>Math.abs(h.guesses[0]-h.target));
+        let html=`<div class="stat"><span>Average miss</span><b>${fmt(errs.reduce((a,b)=>a+b,0)/ROUNDS)}</b></div>`+
+          `<div class="stat"><span>Closest</span><b>${fmt(Math.min(...errs))}</b></div>`;
+        if(daily){
+          const msg={posting:['','Posting your score…'],posted:['ok','Posted to today’s leaderboard.'],
+            practice:['','Practice run. Your first score today is the one on the board.'],
+            offline:['','Sign in to claude.ai to post scores to the leaderboard.'],
+            denied:['err','Your score couldn’t be posted: this page needs to be shared with you at Editor access (or Contributor on a Team plan).'],
+            failed:['err','Your score couldn’t be posted. Check your connection and play again to retry.']}[st.post];
+          if(msg)html+=`<div class="note ${msg[0]}">${msg[1]}</div>`;
+        }
+        result.innerHTML=html;
+      }else{
+        const [a,b]=st.scores;
+        if(a===b){label.textContent='Final result';target.textContent='Tie';target.classList.add('word');}
+        else{const w=a>b?0:1;label.textContent='Winner';target.textContent=N[w];target.classList.add('word','win-p'+(w+1));}
+        const wins=[0,0];st.history.forEach(h=>{if(h.pts[0]>h.pts[1])wins[0]++;else if(h.pts[1]>h.pts[0])wins[1]++;});
+        result.innerHTML=`<div class="duo">`+[0,1].map(i=>`<div class="pcol p${i+1}"><span class="nm">${esc(N[i])}</span>`+
+          `<span class="pts">${st.scores[i]}</span><span class="ln">${wins[i]} round${wins[i]===1?'':'s'} won</span></div>`).join('')+'</div>';
+      }
+      btn.textContent=daily?'Play again (practice)':'Play again';
+    }
+    renderRounds(N,duel);
+  }
+
+  function renderRounds(N,duel){
+    const box=$('rounds');box.innerHTML='';
+    (duel?[0,1]:[0]).forEach(r=>{
+      const lab=document.createElement('div');lab.className='rlabel'+(duel?' p'+(r+1):'');
+      lab.textContent=duel?N[r]:'Rounds';box.appendChild(lab);
+      for(let i=1;i<=ROUNDS;i++){
+        const d=document.createElement('div'),h=st.history[i-1];
+        d.className='pip'+(h?' '+grade(h.pts[r]):(i===st.round&&st.phase!=='done'?' now':''));
+        d.textContent=h?h.pts[r]:i;box.appendChild(d);
+      }
+    });
+  }
+
+  // ---------- input ----------
+  function valueFromEvent(e,prev){
+    const G=g(),r=dial.getBoundingClientRect();
+    const x=(e.clientX-r.left)*G.vw/r.width-G.cx, y=G.cy-(e.clientY-r.top)*G.vh/r.height;
+    let v=G.fromXY(x,y);
+    if(v===null)return prev==null?st.value:prev;
+    v=Math.min(100,Math.max(0,v));
+    if(G.wrap&&prev!=null){ // don't jump across the top seam mid-drag
+      if(prev>75&&v<25)v=100;else if(prev<25&&v>75)v=0;
+    }
+    return v;
+  }
+  let dragging=false;
+  dial.addEventListener('pointerdown',e=>{
+    if(st.phase!=='aim')return;
+    dragging=true;dial.classList.add('dragging');dial.setPointerCapture(e.pointerId);
+    st.value=valueFromEvent(e,null);setNeedle(cur(),st.value,true,true);e.preventDefault();
+  });
+  dial.addEventListener('pointermove',e=>{if(!dragging)return;st.value=valueFromEvent(e,st.value);setNeedle(cur(),st.value,true,true);});
+  const end=()=>{dragging=false;dial.classList.remove('dragging');dial.setAttribute('aria-valuenow',Math.round(st.value));};
+  dial.addEventListener('pointerup',end);dial.addEventListener('pointercancel',end);
+  dial.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){act();e.preventDefault();return;}
+    if(st.phase!=='aim')return;
+    const step=e.shiftKey?10:1;let v=Math.round(st.value);
+    if(e.key==='ArrowRight'||e.key==='ArrowUp')v+=step;
+    else if(e.key==='ArrowLeft'||e.key==='ArrowDown')v-=step;
+    else if(e.key==='Home')v=0;else if(e.key==='End')v=100;else return;
+    st.value=Math.min(100,Math.max(0,v));setNeedle(cur(),st.value,true,true);
+    dial.setAttribute('aria-valuenow',Math.round(st.value));e.preventDefault();
+  });
+  $('action').addEventListener('click',act);
+
+  document.querySelectorAll('input[name="dial"]').forEach(r=>r.addEventListener('change',()=>{cfg.dial=r.value;newGame();}));
+  document.querySelectorAll('input[name="mode"]').forEach(r=>r.addEventListener('change',()=>{cfg.mode=r.value;newGame();}));
+  ['name1','name2'].forEach(id=>$(id).addEventListener('input',render));
+
+  newGame();
+})();
+</script>
+
+</body></html>
