@@ -1,0 +1,389 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta charset="utf-8">
+<title>Differential</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one narrow column like a patient chart: header + settings, the case card, the findings card, then the disclaimer. */
+:root {
+  --paper: #f3f4ef;
+  --card: #ffffff;
+  --ink: #1a2321;
+  --muted: #5b6863;
+  --rule: #d5dad3;
+  --pen: #2647a6;
+  --ok: #2c7a47;
+  --bad: #b0341f;
+  --mark: #fff1b8;
+  --display: "Newsreader", "Iowan Old Style", Georgia, serif;
+  --body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #111614; --card: #19201d; --ink: #e5ebe7; --muted: #97a59f; --rule: #2c3733;
+  --pen: #93abff; --ok: #6cc48c; --bad: #ff8b74; --mark: #4a4220; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --paper: #111614; --card: #19201d; --ink: #e5ebe7; --muted: #97a59f; --rule: #2c3733;
+  --pen: #93abff; --ok: #6cc48c; --bad: #ff8b74; --mark: #4a4220; color-scheme: dark; }
+
+[hidden] { display: none !important; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55; }
+.wrap { max-width: 760px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 48px; display: flex; flex-direction: column; gap: 20px; }
+
+header { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+h1 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 44px; line-height: 1; letter-spacing: -.01em; }
+h1 i { font-weight: 400; color: var(--muted); font-size: 18px; letter-spacing: 0; display: block; margin-top: 6px; }
+.tally { font-family: var(--mono); font-size: 13px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.tally b { color: var(--ink); font-size: 22px; font-weight: 500; }
+
+.settings { display: flex; flex-wrap: wrap; gap: 12px 22px; align-items: center; }
+.group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.group > span { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; background: var(--card); padding: 3px; gap: 2px; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label { padding: 6px 12px; border-radius: 4px; font-size: 14px; font-weight: 500; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.seg input:checked + label { background: var(--ink); color: var(--card); }
+.seg input:focus-visible + label { outline: 2px solid var(--pen); outline-offset: 1px; }
+
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 22px 24px; display: flex; flex-direction: column; gap: 16px; }
+.chartline { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--rule); padding-bottom: 10px; }
+.q { margin: 0; font-family: var(--display); font-weight: 400; font-size: 27px; line-height: 1.2; text-wrap: balance; }
+.q em { font-style: italic; }
+.dx { font-family: var(--display); font-size: 40px; font-weight: 600; line-height: 1.05; margin: -4px 0 0; text-wrap: balance; }
+.sx { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.sx li { display: grid; grid-template-columns: 2.2em 1fr; gap: 8px; padding: 9px 0; border-top: 1px dashed var(--rule); font-size: 17px; }
+.sx li:first-child { border-top: 0; }
+.sx li::before { content: attr(data-n); font-family: var(--mono); font-size: 12px; color: var(--muted); padding-top: 4px; }
+
+.opts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.opt { text-align: left; font: 500 16px var(--body); color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 12px 14px; cursor: pointer; min-width: 0; display: flex; gap: 10px; align-items: flex-start; }
+.opt .k { font-family: var(--mono); font-size: 12px; color: var(--muted); border: 1px solid var(--rule); border-radius: 3px; padding: 0 5px; line-height: 1.6; flex: none; }
+.opt ul { margin: 0; padding-left: 16px; font-weight: 400; font-size: 14.5px; display: grid; gap: 3px; }
+.opt:hover:not(:disabled) { border-color: var(--pen); }
+.opt:focus-visible { outline: 2px solid var(--pen); outline-offset: 2px; }
+.opt:disabled { cursor: default; }
+.opt.right { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, var(--card)); }
+.opt.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 10%, var(--card)); }
+.opt.dim { opacity: .55; }
+.opts.wide { grid-template-columns: 1fr 1fr; }
+
+.typed { display: grid; gap: 10px; }
+.typed label { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.field { display: flex; gap: 8px; align-items: center; }
+.field .n { font-family: var(--mono); font-size: 12px; color: var(--muted); width: 1.6em; flex: none; }
+.field input { flex: 1; min-width: 0; font: 400 17px var(--body); color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 11px 12px; }
+.field input:focus-visible { outline: 2px solid var(--pen); outline-offset: 1px; }
+.field input.right { border-color: var(--ok); }
+.field input.wrong { border-color: var(--bad); }
+.field .verdict { font-family: var(--mono); font-size: 12px; min-width: 4.5em; }
+.verdict.ok { color: var(--ok); } .verdict.no { color: var(--bad); }
+
+.actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.btn { font: 600 15px var(--body); border-radius: 6px; padding: 11px 22px; cursor: pointer; border: 1px solid var(--ink); background: var(--ink); color: var(--card); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--rule); }
+.btn:focus-visible { outline: 2px solid var(--pen); outline-offset: 2px; }
+.hint { font-size: 13.5px; color: var(--muted); }
+
+.findings { gap: 14px; }
+.verdictline { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.verdictline .big { font-family: var(--display); font-size: 30px; font-weight: 600; }
+.verdictline .big.ok { color: var(--ok); } .verdictline .big.no { color: var(--bad); } .verdictline .big.part { color: var(--pen); }
+.verdictline .pts { font-family: var(--mono); color: var(--muted); }
+.answer { font-family: var(--display); font-size: 24px; line-height: 1.2; }
+.answer small { display: block; font-family: var(--body); font-size: 13px; color: var(--muted); margin-top: 2px; }
+.findings h3 { margin: 6px 0 -6px; font-family: var(--mono); font-weight: 400; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.findings p { margin: 0; max-width: 65ch; }
+.allsx { margin: 0; padding-left: 20px; display: grid; gap: 3px; }
+.allsx li.hit { background: linear-gradient(transparent 55%, var(--mark) 55%); width: fit-content; }
+.study { border-left: 3px solid var(--pen); padding: 4px 0 4px 14px; display: grid; gap: 4px; }
+.study .cite { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.study .title { font-family: var(--display); font-size: 19px; line-height: 1.3; }
+.study .links { display: flex; gap: 14px; flex-wrap: wrap; font-size: 14px; }
+a { color: var(--pen); text-underline-offset: 2px; }
+
+.pips { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; }
+.pip { height: 8px; border-radius: 2px; background: var(--rule); }
+.pip.ok { background: var(--ok); } .pip.part { background: var(--pen); } .pip.no { background: var(--bad); } .pip.now { background: var(--ink); }
+
+.summary .score { font-family: var(--display); font-size: 56px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.summary .score small { font-family: var(--mono); font-size: 14px; color: var(--muted); font-weight: 400; margin-left: 6px; }
+.log { width: 100%; border-collapse: collapse; font-size: 15px; }
+.log td { padding: 8px 0; border-top: 1px solid var(--rule); vertical-align: top; }
+.log td.n { text-align: right; font-family: var(--mono); font-size: 13px; color: var(--muted); white-space: nowrap; padding-left: 12px; font-variant-numeric: tabular-nums; }
+
+.disclaimer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 14px; max-width: 70ch; }
+
+@media (max-width: 560px) {
+  h1 { font-size: 36px; }
+  .card { padding: 18px 16px; }
+  .q { font-size: 23px; } .dx { font-size: 32px; }
+  .opts, .opts.wide { grid-template-columns: 1fr; }
+}
+.deckinfo { flex-basis: 100%; margin: -2px 0 0; font-size: 13.5px; color: var(--muted); }
+.freq { font-family: var(--mono); font-size: 11px; color: var(--muted); border: 1px solid var(--rule); border-radius: 3px; padding: 0 5px; margin-left: 6px; white-space: nowrap; }
+.disclaimer p { margin: 0 0 8px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Differential<i>Match the symptoms to the diagnosis, or the diagnosis to its symptoms.</i></h1>
+    <div class="tally"><span id="t-round">Case 1 / 10</span><br><b id="t-score">0</b> pts</div>
+  </header>
+
+  <div class="settings">
+    <div class="group"><span>Deck</span>
+      <div class="seg" role="radiogroup" aria-label="Deck">
+        <input type="radio" name="deck" id="deck-common" value="common" checked><label for="deck-common">Common</label>
+        <input type="radio" name="deck" id="deck-rare" value="rare"><label for="deck-rare">Rare &amp; genetic</label>
+      </div>
+    </div>
+    <div class="group"><span>Direction</span>
+      <div class="seg" role="radiogroup" aria-label="Direction">
+        <input type="radio" name="dir" id="dir-sx" value="sx2dx" checked><label for="dir-sx">Symptoms → Diagnosis</label>
+        <input type="radio" name="dir" id="dir-dx" value="dx2sx"><label for="dir-dx">Diagnosis → Symptoms</label>
+      </div>
+    </div>
+    <div class="group"><span>Format</span>
+      <div class="seg" role="radiogroup" aria-label="Format">
+        <input type="radio" name="fmt" id="fmt-mc" value="mc" checked><label for="fmt-mc">Multiple choice</label>
+        <input type="radio" name="fmt" id="fmt-hc" value="hc"><label for="fmt-hc">Hardcore</label>
+      </div>
+    </div>
+    <p class="deckinfo" id="deckinfo"></p>
+  </div>
+
+  <div class="pips" id="pips" aria-hidden="true"></div>
+
+  <section class="card" id="case" aria-live="polite"><p class="hint">Loading conditions…</p></section>
+  <section class="card findings" id="findings" hidden aria-live="polite"></section>
+  <section class="card summary" id="summary" hidden></section>
+
+  <div class="disclaimer">
+    <p>For learning only. Real illnesses rarely look like the textbook: symptoms overlap, many people have only some of them, and some serious conditions present atypically. This is not a diagnostic tool. If you or someone else has symptoms like these, contact a health professional, and call emergency services for sudden chest pain, stroke signs, trouble breathing or a severe allergic reaction.</p>
+    <p>Study links go to PubMed, the US National Library of Medicine's index of biomedical literature. Rare-disease definitions and symptom frequencies come from <a href="https://www.orphadata.com" target="_blank" rel="noopener">Orphanet</a> (CC BY 4.0). Symptom names come from the <a href="https://hpo.jax.org" target="_blank" rel="noopener">Human Phenotype Ontology</a>.</p>
+  </div>
+</div>
+
+<script>
+(() => {
+const ROUNDS = 10;
+const FREQ = ["Always present", "Very frequent (80–99%)", "Frequent (30–79%)"];
+const $ = id => document.getElementById(id);
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const pick = (a, n) => shuffle(a).slice(0, n);
+const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[’'`]s\b/g, "s").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+const stem = s => norm(s).split(" ").map(w => w.length > 3 ? w.replace(/ies$/, "y").replace(/(?<!s)s$/, "") : w).join(" ");
+const lev = (a, b) => {
+  const m = a.length, n = b.length; if (!m) return n; if (!n) return m;
+  let prev = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) { const cur = [i]; for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); prev = cur; }
+  return prev[n];
+};
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+
+/* ---------------- decks ---------------- */
+const DECKS = {
+  common: { url: "common.json", items: null,
+    info: n => `${n} common conditions. Each has a hand-written explanation and a checked study summary.`,
+    load: d => d.map(c => ({ ...c, sx: c.sx.map(([text, kw]) => ({ text, kws: kw.map(norm) })) })) },
+  rare: { url: "rare.json", items: null,
+    info: n => `${n.toLocaleString("en-US")} rare and genetic conditions from Orphanet, with symptoms ranked by how often they occur. Studies are matched automatically.`,
+    load: d => d.items.map(x => ({
+      rare: true, id: "orpha-" + x.o, orpha: x.o, name: x.n, sys: x.g || "Rare disease", aka: [x.n, ...(x.a || [])], about: x.d,
+      hpo: x.s.map(s => s[0]),
+      sx: x.s.map(([t, f]) => { const [label, lay, syns] = d.terms[t]; return { text: label + (lay && norm(lay) !== norm(label) ? ` (${lay})` : ""), label, freq: FREQ[f], kws: [label, lay, ...(syns || [])].filter(Boolean).map(stem) }; }),
+      study: x.p ? { pmid: x.p[0], journal: x.p[1], year: x.p[2], title: x.p[3], doi: x.p[4] } : null })) }
+};
+const deck = () => DECKS[cfg.deck].items;
+const loadDeck = async key => {
+  const D = DECKS[key];
+  if (!D.items) { const r = await fetch(D.url); if (!r.ok) throw new Error(r.status); D.items = D.load(await r.json()); }
+  return D.items;
+};
+
+/* ---------------- grading ---------------- */
+const matchDx = (typed, cond) => {
+  const t = norm(typed).replace(/^(an? |the |acute )/, ""); if (!t) return false;
+  return cond.aka.some(a => { const n = norm(a).replace(/^acute /, ""); const tol = n.length <= 4 ? 0 : n.length <= 9 ? 1 : 2; return lev(t, n) <= tol; });
+};
+const sxHit = (typed, s, rare) => {
+  if (!rare) { const t = " " + norm(typed) + " "; return s.kws.some(k => t.includes(k)); }
+  const t = stem(typed); if (t.length < 3) return false;
+  return s.kws.some(k => k === t || (t.length >= 6 && (" " + k + " ").includes(" " + t + " ")) || (k.length >= 5 && (" " + t + " ").includes(" " + k + " ")) || (t.length >= 8 && lev(t, k) <= 2));
+};
+const matchSx = (typed, cond, taken) => {
+  if (norm(typed).length < 3) return -1;
+  for (let i = 0; i < cond.sx.length; i++) if (!taken.has(i) && sxHit(typed, cond.sx[i], cond.rare)) return i;
+  return -1;
+};
+
+/* ---------------- state ---------------- */
+const cfg = { deck: "common", dir: "sx2dx", fmt: "mc" };
+let rounds = [], idx = 0, results = [], phase = "ask", cur = null;
+const MAXPTS = () => cfg.fmt === "mc" ? 100 : 150;
+const bestKey = () => `differential-best-${cfg.deck}-${cfg.dir}-${cfg.fmt}`;
+
+const newGame = async () => {
+  phase = "loading";
+  $("summary").hidden = true; $("findings").hidden = true; $("case").hidden = false;
+  try { await loadDeck(cfg.deck); }
+  catch (e) { $("case").innerHTML = `<p class="hint">The ${cfg.deck === "rare" ? "rare-disease" : "condition"} list didn't load. Reload the page to try again.</p>`; return; }
+  $("deckinfo").textContent = DECKS[cfg.deck].info(deck().length);
+  rounds = pick(deck(), ROUNDS); idx = 0; results = [];
+  startRound();
+};
+
+const distractors = (t, n) => {
+  const pool = deck().filter(c => c !== t && norm(c.name) !== norm(t.name));
+  let out = [];
+  if (t.rare) {
+    const set = new Set(t.hpo), tw = norm(t.name).split(" ")[0];
+    const scored = pool.map(c => [c, c.hpo.reduce((k, h) => k + set.has(h), 0)])
+      .filter(([c, k]) => k > 0 && norm(c.name).split(" ")[0] !== tw).sort((a, b) => b[1] - a[1]).slice(0, 40).map(x => x[0]);
+    out = pick(scored.slice(2), 2);
+  } else {
+    out = pick(pool.filter(c => c.sys === t.sys), 2);
+  }
+  for (const c of shuffle(pool)) { if (out.length >= n) break; if (!out.includes(c)) out.push(c); }
+  return out.slice(0, n);
+};
+const cluster = (c, avoid) => {
+  const ok = c.sx.filter(s => !avoid.has(norm(s.label || s.text)));
+  const first = ok[0] || c.sx[0];
+  return [first, ...pick(ok.slice(1, 6), 2)].map(s => s.text);
+};
+
+const startRound = () => {
+  const c = rounds[idx]; phase = "ask"; cur = { c };
+  if (cfg.fmt === "mc") {
+    const others = distractors(c, 3);
+    if (cfg.dir === "sx2dx") cur.options = shuffle([c, ...others]).map(o => ({ cond: o }));
+    else { const avoid = new Set(c.sx.map(s => norm(s.label || s.text))); cur.options = shuffle([c, ...others]).map(o => ({ cond: o, list: cluster(o, o === c ? new Set() : avoid) })); }
+  }
+  $("findings").hidden = true;
+  renderCase(); renderTally(); renderPips();
+  const first = $("case").querySelector(".opt, input"); if (first) first.focus({ preventScroll: true });
+};
+
+/* ---------------- render ---------------- */
+const renderTally = () => { $("t-round").textContent = `Case ${Math.min(idx + 1, ROUNDS)} / ${ROUNDS}`; $("t-score").textContent = results.reduce((s, r) => s + r.pts, 0); };
+const renderPips = () => {
+  $("pips").innerHTML = Array.from({ length: ROUNDS }, (_, i) => { const r = results[i]; const cls = r ? (r.pts === r.max ? "ok" : r.pts > 0 ? "part" : "no") : (i === idx && phase !== "done" ? "now" : ""); return `<div class="pip ${cls}"></div>`; }).join("");
+};
+const renderCase = () => {
+  const c = cur.c, box = $("case");
+  let body = `<div class="chartline"><span>Case ${idx + 1} of ${ROUNDS}</span><span>${esc(c.sys)}</span></div>`;
+  if (cfg.dir === "sx2dx") {
+    const shown = c.rare ? c.sx.slice(0, 8) : c.sx;
+    body += `<p class="q">${c.rare ? "A patient has these features:" : "A patient presents with:"}</p><ul class="sx">${shuffle(shown).map((s, i) => `<li data-n="${String(i + 1).padStart(2, "0")}">${esc(s.text)}</li>`).join("")}</ul>`;
+    if (cfg.fmt === "mc") body += `<p class="q">What is the most likely diagnosis?</p><div class="opts">${cur.options.map((o, i) => `<button class="opt" type="button" data-i="${i}"><span class="k">${"ABCD"[i]}</span><span>${esc(o.cond.name)}</span></button>`).join("")}</div>`;
+    else body += `<div class="typed"><label for="dx-in">Your diagnosis</label><div class="field"><input id="dx-in" type="text" autocomplete="off" spellcheck="false" placeholder="Type the condition"><span class="verdict" id="dx-v"></span></div></div>
+      <div class="actions"><button class="btn" id="submit" type="button">Submit diagnosis</button><span class="hint">Small typos are accepted. Common names, synonyms and abbreviations count.</span></div>`;
+  } else {
+    body += `<p class="q">Diagnosis on file:</p><div class="dx">${esc(c.name)}</div>`;
+    if (cfg.fmt === "mc") body += `<p class="q">Which set of ${c.rare ? "features" : "symptoms"} fits it best?</p><div class="opts wide">${cur.options.map((o, i) => `<button class="opt" type="button" data-i="${i}"><span class="k">${"ABCD"[i]}</span><ul>${o.list.map(s => `<li>${esc(s)}</li>`).join("")}</ul></button>`).join("")}</div>`;
+    else body += `<div class="typed"><label>Name three ${c.rare ? "features" : "hallmark symptoms"}</label>${[0, 1, 2].map(i => `<div class="field"><span class="n">${i + 1}.</span><input id="sx-in-${i}" type="text" autocomplete="off" placeholder="Symptom ${i + 1}" aria-label="Symptom ${i + 1}"><span class="verdict" id="sx-v-${i}"></span></div>`).join("")}</div>
+      <div class="actions"><button class="btn" id="submit" type="button">Submit symptoms</button><span class="hint">One per box. ${c.rare ? "Medical terms or plain words both work: \"hypotonia\" or \"low muscle tone\"." : "Plain words work: \"stiff neck\", \"fever\"."}</span></div>`;
+  }
+  box.innerHTML = body;
+  box.querySelectorAll(".opt").forEach(b => b.onclick = () => answerMC(+b.dataset.i));
+  const sub = $("submit"); if (sub) sub.onclick = answerTyped;
+  box.querySelectorAll("input").forEach(inp => inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); answerTyped(); } }));
+};
+
+/* ---------------- answering ---------------- */
+const answerMC = i => {
+  if (phase !== "ask") return;
+  const ok = cur.options[i].cond === cur.c;
+  $("case").querySelectorAll(".opt").forEach((b, j) => { b.disabled = true; if (cur.options[j].cond === cur.c) b.classList.add("right"); else if (j === i) b.classList.add("wrong"); else b.classList.add("dim"); });
+  finishRound({ pts: ok ? 100 : 0, max: 100, verdict: ok ? "Correct" : "Not quite", kind: ok ? "ok" : "no", picked: cur.options[i].cond });
+};
+const answerTyped = () => {
+  if (phase !== "ask") return;
+  const c = cur.c;
+  if (cfg.dir === "sx2dx") {
+    const inp = $("dx-in"); if (!inp.value.trim()) { inp.focus(); return; }
+    const ok = matchDx(inp.value, c);
+    inp.readOnly = true; inp.classList.add(ok ? "right" : "wrong");
+    $("dx-v").className = "verdict " + (ok ? "ok" : "no"); $("dx-v").textContent = ok ? "✓ match" : "✗";
+    const other = ok ? null : deck().find(x => x !== c && matchDx(inp.value, x));
+    finishRound({ pts: ok ? 150 : 0, max: 150, verdict: ok ? "Correct" : "Not quite", kind: ok ? "ok" : "no", typedOther: other });
+  } else {
+    const ins = [0, 1, 2].map(i => $("sx-in-" + i));
+    if (ins.every(x => !x.value.trim())) { ins[0].focus(); return; }
+    const taken = new Set();
+    ins.forEach((inp, i) => {
+      const m = matchSx(inp.value, c, taken); if (m >= 0) taken.add(m);
+      inp.readOnly = true; inp.classList.add(m >= 0 ? "right" : "wrong");
+      const v = $("sx-v-" + i); v.className = "verdict " + (m >= 0 ? "ok" : "no"); v.textContent = m >= 0 ? "✓" : "✗";
+    });
+    const n = taken.size;
+    finishRound({ pts: n * 50, max: 150, verdict: n === 3 ? "All three" : n ? `${n} of 3` : "None matched", kind: n === 3 ? "ok" : n ? "part" : "no", hitSet: taken });
+  }
+};
+
+const studyCard = c => {
+  const s = c.study;
+  if (!s) return `<p class="hint">No study in our journal list matched this condition's name.</p>`;
+  const links = `<span class="links"><a href="https://pubmed.ncbi.nlm.nih.gov/${esc(s.pmid)}/" target="_blank" rel="noopener">Read on PubMed ↗</a>${s.doi ? `<a href="https://doi.org/${esc(s.doi)}" target="_blank" rel="noopener">Journal article (DOI) ↗</a>` : ""}${c.rare ? `<a href="https://www.orpha.net/en/disease/detail/${esc(c.orpha)}" target="_blank" rel="noopener">Orphanet entry ↗</a>` : ""}</span>`;
+  return `<div class="study"><span class="cite">${esc(s.journal)} · ${esc(s.year)}</span><span class="title">${esc(s.title)}</span>${c.rare ? `<p class="hint">Matched automatically by searching PubMed for this condition's name. Not individually reviewed.</p>` : `<p>${esc(s.note)}</p>`}${links}</div>`;
+};
+
+const finishRound = r => {
+  phase = "reveal";
+  const c = cur.c;
+  results.push({ c, pts: r.pts, max: r.max });
+  const sub = $("submit"); if (sub) sub.disabled = true;
+  let wrongNote = "";
+  if (r.picked && r.picked !== c) wrongNote = `<p>You chose <strong>${esc(r.picked.name)}</strong>. Its leading features are ${r.picked.sx.slice(0, 2).map(x => esc(x.text.charAt(0).toLowerCase() + x.text.slice(1))).join(", and ")}.</p>`;
+  if (r.typedOther) wrongNote = `<p>That matches <strong>${esc(r.typedOther.name)}</strong>, a different condition in this deck.</p>`;
+  const hit = r.hitSet || new Set();
+  const alt = c.aka.filter(a => norm(a) !== norm(c.name)).slice(0, 4);
+  $("findings").innerHTML = `
+    <div class="verdictline"><span class="big ${r.kind}">${r.verdict}</span><span class="pts">+${r.pts} / ${r.max}</span></div>
+    <div class="answer">${esc(c.name)}<small>${esc(c.sys)}${alt.length ? " · also: " + alt.map(esc).join(", ") : ""}</small></div>
+    ${wrongNote}
+    <h3>${c.rare ? "Features and how often they occur" : "Hallmark symptoms"}</h3>
+    <ul class="allsx">${c.sx.map((x, i) => `<li class="${hit.has(i) ? "hit" : ""}">${esc(x.text)}${x.freq ? ` <span class="freq">${esc(x.freq)}</span>` : ""}</li>`).join("")}</ul>
+    <h3>${c.rare ? "About this condition (Orphanet)" : "What's happening in the body"}</h3>
+    <p>${esc(c.about)}</p>
+    <h3>From the medical literature</h3>
+    ${studyCard(c)}
+    <div class="actions"><button class="btn" id="next" type="button">${idx + 1 < ROUNDS ? "Next case" : "See results"}</button></div>`;
+  $("findings").hidden = false;
+  $("next").onclick = next; $("next").focus({ preventScroll: true });
+  $("findings").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest" });
+  renderTally(); renderPips();
+};
+
+const next = () => { if (phase !== "reveal") return; idx++; if (idx < ROUNDS) startRound(); else finish(); };
+
+const finish = () => {
+  phase = "done";
+  const total = results.reduce((s, r) => s + r.pts, 0), max = ROUNDS * MAXPTS();
+  const best = Math.max(total, +(store.get(bestKey()) || 0)); store.set(bestKey(), String(best));
+  const pct = total / max;
+  const rank = pct >= .9 ? "Attending physician. Your differential is sharp." : pct >= .7 ? "Chief resident. A few zebras slipped past." : pct >= .5 ? "Intern. Solid instincts, keep reading." : pct >= .3 ? "Medical student. The patterns are starting to show." : "Pre-med. Every expert started here.";
+  $("case").hidden = true; $("findings").hidden = true;
+  $("summary").innerHTML = `
+    <div class="chartline"><span>Shift complete</span><span>${cfg.deck === "rare" ? "Rare & genetic" : "Common"} · ${cfg.dir === "sx2dx" ? "Symptoms → Diagnosis" : "Diagnosis → Symptoms"} · ${cfg.fmt === "mc" ? "Multiple choice" : "Hardcore"}</span></div>
+    <div class="score">${total}<small>/ ${max}${best > total ? ` · best ${best}` : " · your best yet"}</small></div>
+    <p class="q"><em>${rank}</em></p>
+    <table class="log"><tbody>${results.map(r => `<tr><td>${esc(r.c.name)}</td><td class="n">${r.pts} / ${r.max}</td></tr>`).join("")}</tbody></table>
+    <div class="actions"><button class="btn" id="again" type="button">New shift</button><button class="btn ghost" id="swap" type="button">Try ${cfg.fmt === "mc" ? "Hardcore" : "Multiple choice"}</button></div>`;
+  $("summary").hidden = false;
+  $("again").onclick = newGame;
+  $("swap").onclick = () => { const id = cfg.fmt === "mc" ? "fmt-hc" : "fmt-mc"; $(id).checked = true; cfg.fmt = $(id).value; newGame(); };
+  $("again").focus({ preventScroll: true });
+  renderPips();
+};
+
+for (const k of ["deck", "dir", "fmt"]) document.querySelectorAll(`input[name="${k}"]`).forEach(r => r.addEventListener("change", () => { cfg[k] = r.value; newGame(); }));
+newGame();
+})();
+</script>
+
+</body></html>
