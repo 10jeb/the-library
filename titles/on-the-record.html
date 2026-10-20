@@ -1,0 +1,733 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta charset="utf-8">
+<title>On the Record</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Display&family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one column like a case file: masthead, settings, the question card, the ruling with its exhibit list, then the record note. */
+:root {
+  --paper: #f1f2ef;
+  --card: #ffffff;
+  --ink: #17202e;
+  --muted: #5b6472;
+  --rule: #d3d6db;
+  --seal: #9b1f1a;
+  --kept: #2b6a3c;
+  --pen: #1f4f8a;
+  --display: "Libre Caslon Display", "Big Caslon", Georgia, serif;
+  --serif: "Libre Caslon Text", "Iowan Old Style", Georgia, serif;
+  --body: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #111418; --card: #191d23; --ink: #e6e8eb; --muted: #9aa2ad; --rule: #2c323a; --seal: #ff7d6e; --kept: #6fc489; --pen: #93b6ff; color-scheme: dark; } }
+:root[data-theme="dark"] { --paper: #111418; --card: #191d23; --ink: #e6e8eb; --muted: #9aa2ad; --rule: #2c323a; --seal: #ff7d6e; --kept: #6fc489; --pen: #93b6ff; color-scheme: dark; }
+[hidden] { display: none !important; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 16.5px; line-height: 1.55; margin: 0; }
+.wrap { max-width: 760px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 48px; display: flex; flex-direction: column; gap: 20px; }
+
+header { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; border-bottom: 2px solid var(--ink); padding-bottom: 12px; }
+h1 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 52px; line-height: .95; letter-spacing: -.01em; }
+h1 small { display: block; font-family: var(--serif); font-style: italic; font-size: 17px; color: var(--muted); margin-top: 8px; letter-spacing: 0; }
+.tally { font-family: var(--mono); font-size: 13px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.tally b { color: var(--ink); font-size: 22px; font-weight: 500; }
+
+.settings { display: flex; flex-direction: column; gap: 12px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.lbl { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); min-width: 4.5em; }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--rule); border-radius: 4px; background: var(--card); padding: 3px; gap: 2px; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label { padding: 6px 12px; border-radius: 3px; font-size: 14.5px; font-weight: 500; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.seg input:checked + label { background: var(--ink); color: var(--card); }
+.seg input:focus-visible + label { outline: 2px solid var(--pen); outline-offset: 1px; }
+.count { font-size: 13.5px; color: var(--muted); }
+
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: 4px; padding: 22px 24px; display: flex; flex-direction: column; gap: 16px; }
+.docket { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--rule); padding-bottom: 10px; }
+.q { margin: 0; font-family: var(--serif); font-size: 25px; line-height: 1.3; text-wrap: balance; }
+.stmt { margin: 0; font-family: var(--serif); font-size: 25px; line-height: 1.3; text-wrap: balance; border-left: 3px solid var(--ink); padding-left: 14px; }
+
+.opts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.opt { text-align: left; font: 500 16.5px var(--body); color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; padding: 12px 14px; cursor: pointer; display: flex; gap: 10px; align-items: baseline; min-width: 0; }
+.opt .k { font-family: var(--mono); font-size: 12px; color: var(--muted); flex: none; }
+.opt:hover:not(:disabled) { border-color: var(--pen); }
+.opt:focus-visible { outline: 2px solid var(--pen); outline-offset: 2px; }
+.opt:disabled { cursor: default; }
+.opt.right { border-color: var(--kept); background: color-mix(in srgb, var(--kept) 12%, var(--card)); }
+.opt.wrong { border-color: var(--seal); background: color-mix(in srgb, var(--seal) 10%, var(--card)); }
+.opt.dim { opacity: .5; }
+.tf { grid-template-columns: 1fr 1fr; }
+.tf .opt { justify-content: center; font-family: var(--serif); font-size: 20px; }
+
+.typed { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.typed input { flex: 1 1 240px; min-width: 0; font: 400 18px var(--body); color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; padding: 11px 12px; }
+.typed input:focus-visible { outline: 2px solid var(--pen); outline-offset: 1px; }
+.typed input.right { border-color: var(--kept); } .typed input.wrong { border-color: var(--seal); }
+.btn { font: 600 15px var(--body); border-radius: 4px; padding: 11px 22px; cursor: pointer; border: 1px solid var(--ink); background: var(--ink); color: var(--card); }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--rule); }
+.btn:focus-visible { outline: 2px solid var(--pen); outline-offset: 2px; }
+.hint { font-size: 14px; color: var(--muted); margin: 0; }
+
+.ruling { gap: 14px; }
+.stamps { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.stamp { font-family: var(--mono); font-weight: 500; font-size: 15px; letter-spacing: .18em; text-transform: uppercase; border: 2.5px solid currentColor; border-radius: 3px; padding: 4px 10px; transform: rotate(-3deg); display: inline-block; }
+.stamp.ok { color: var(--kept); } .stamp.no { color: var(--seal); } .stamp.part { color: var(--pen); }
+.stamp.status { transform: rotate(2deg); font-size: 13px; }
+.pts { font-family: var(--mono); color: var(--muted); }
+.answer { font-family: var(--serif); font-size: 22px; line-height: 1.3; }
+.answer small { display: block; font-family: var(--body); font-size: 14px; color: var(--muted); margin-top: 2px; }
+.ruling h3 { margin: 4px 0 -6px; font-family: var(--mono); font-weight: 400; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.ruling p { margin: 0; max-width: 65ch; }
+.exhibits { list-style: none; margin: 0; padding: 0; display: grid; }
+.exhibits li { display: grid; grid-template-columns: 5.2em 1fr; gap: 2px 12px; padding: 9px 0; border-top: 1px solid var(--rule); }
+.exhibits li:first-child { border-top: 0; }
+.exhibits .ex { font-family: var(--mono); font-size: 12px; color: var(--muted); padding-top: 3px; }
+.exhibits .kind { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.exhibits a { color: var(--pen); text-underline-offset: 2px; font-weight: 500; }
+.exhibits .body { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+
+.pips { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; }
+.pip { height: 6px; background: var(--rule); }
+.pip.ok { background: var(--kept); } .pip.part { background: var(--pen); } .pip.no { background: var(--seal); } .pip.now { background: var(--ink); }
+
+.summary .score { font-family: var(--display); font-size: 60px; line-height: 1; font-variant-numeric: tabular-nums; }
+.summary .score small { font-family: var(--mono); font-size: 14px; color: var(--muted); margin-left: 6px; }
+.log { width: 100%; border-collapse: collapse; font-size: 15px; }
+.log td { padding: 8px 0; border-top: 1px solid var(--rule); vertical-align: top; }
+.log td.n { text-align: right; font-family: var(--mono); font-size: 13px; color: var(--muted); white-space: nowrap; padding-left: 12px; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.note { font-size: 13.5px; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 14px; max-width: 70ch; }
+.note p { margin: 0 0 8px; }
+
+@media (max-width: 560px) {
+  h1 { font-size: 40px; }
+  .card { padding: 18px 16px; }
+  .q, .stmt { font-size: 21px; }
+  .opts { grid-template-columns: 1fr; }
+  .tf { grid-template-columns: 1fr 1fr; }
+  .exhibits li { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { .stamp { transform: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>On the Record<small>U.S. laws, rulings, promises and votes, each answer backed by the primary record.</small></h1>
+    <div class="tally"><span id="t-round">Question 1 / 10</span><br><b id="t-score">0</b> pts</div>
+  </header>
+
+  <div class="settings">
+    <div class="row"><span class="lbl">Format</span>
+      <div class="seg" role="radiogroup" aria-label="Format">
+        <input type="radio" name="fmt" id="fmt-mc" value="mc" checked><label for="fmt-mc">Multiple choice</label>
+        <input type="radio" name="fmt" id="fmt-tf" value="tf"><label for="fmt-tf">True or false</label>
+        <input type="radio" name="fmt" id="fmt-hc" value="hc"><label for="fmt-hc">Hardcore</label>
+      </div>
+    </div>
+    <div class="row"><span class="lbl">Topic</span>
+      <div class="seg" role="radiogroup" aria-label="Topic">
+        <input type="radio" name="cat" id="cat-all" value="all" checked><label for="cat-all">Everything</label>
+        <input type="radio" name="cat" id="cat-law" value="law"><label for="cat-law">Laws &amp; orders</label>
+        <input type="radio" name="cat" id="cat-ended" value="ended"><label for="cat-ended">Repealed &amp; ended</label>
+        <input type="radio" name="cat" id="cat-court" value="court"><label for="cat-court">Supreme Court</label>
+        <input type="radio" name="cat" id="cat-promise" value="promise"><label for="cat-promise">Promises &amp; claims</label>
+        <input type="radio" name="cat" id="cat-people" value="people"><label for="cat-people">People &amp; votes</label>
+        <input type="radio" name="cat" id="cat-state" value="state"><label for="cat-state">State level</label>
+        <input type="radio" name="cat" id="cat-now" value="now"><label for="cat-now">Current administration</label>
+      </div>
+    </div>
+    <p class="count" id="count"></p>
+  </div>
+
+  <div class="pips" id="pips" aria-hidden="true"></div>
+  <section class="card" id="case" aria-live="polite"></section>
+  <section class="card ruling" id="ruling" hidden aria-live="polite"></section>
+  <section class="card summary" id="summary" hidden></section>
+
+  <div class="note">
+    <p>Every answer links to primary records where they exist: the signed law on GovInfo (the Government Publishing Office), the bill's history on Congress.gov, official Senate and House roll-call votes, Supreme Court opinions and oral-argument audio, executive orders in the Federal Register, speech and debate transcripts from the American Presidency Project at UC Santa Barbara, C-SPAN video, National Archives records and FBI case files.</p>
+    <p>The Current administration topic covers President Trump's second term from January 20, 2025, built from official records through mid-October 2026: laws on GovInfo, orders in the Federal Register, Senate votes and Supreme Court dockets.</p>
+    <p>Questions cover both parties and stick to what the record shows. "Promise" questions compare a public pledge with what officially happened afterward.</p>
+  </div>
+</div>
+
+<script>
+(() => {
+/* ---------- source helpers (all URLs were checked against the live sites) ---------- */
+const GOV = p => `https://www.govinfo.gov/app/details/PLAW-${p}`;
+const CG = (c, t, n) => `https://www.congress.gov/bill/${c}th-congress/${t === "S" ? "senate-bill" : "house-bill"}/${n}`;
+const SEN = (c, s, n) => `https://www.senate.gov/legislative/LIS/roll_call_votes/vote${c}${s}/vote_${c}_${s}_${String(n).padStart(5, "0")}.htm`;
+const HOU = r => `https://clerk.house.gov/Votes/${r}`;
+const OY = p => `https://www.oyez.org/cases/${p}`;
+const APP = s => `https://www.presidency.ucsb.edu/documents/${s}`;
+const NARA = s => `https://www.archives.gov/milestone-documents/${s}`;
+const FR = s => `https://www.federalregister.gov/documents/${s}`;
+const law = (p, title) => ["Signed law", `Public Law ${p.replace("publ", "-")}: ${title}`, GOV(p)];
+const bill = (c, t, n) => ["Congressional record", `${t === "S" ? "S." : "H.R."} ${n} (${c}th Congress): text, votes and actions`, CG(c, t, n)];
+
+/* ---------- questions ----------
+   kind: year | name | number. opts: three wrong answers. tf: statement with {X}. status: for promise questions. */
+const Q = [
+ // ---- Laws & orders
+ { cat: "law", q: "In what year did President Obama sign the Affordable Care Act into law?", a: "2010", kind: "year", opts: ["2008", "2009", "2012"], tf: "President Obama signed the Affordable Care Act into law in {X}.",
+   why: "Obama signed the Patient Protection and Affordable Care Act on March 23, 2010. It passed Congress as H.R. 3590.",
+   src: [law("111publ148", "Patient Protection and Affordable Care Act"), bill(111, "H", 3590)] },
+ { cat: "law", q: "Which president signed the 1996 welfare overhaul that replaced AFDC with time-limited TANF block grants?", a: "Bill Clinton", acc: ["clinton", "bill clinton", "william clinton", "william jefferson clinton"], kind: "name", opts: ["Ronald Reagan", "George H. W. Bush", "George W. Bush"], tf: "{X} signed the 1996 welfare overhaul law.",
+   why: "Bill Clinton signed the Personal Responsibility and Work Opportunity Reconciliation Act on August 22, 1996, passed by a Republican-led Congress.",
+   src: [law("104publ193", "Personal Responsibility and Work Opportunity Reconciliation Act of 1996"), bill(104, "H", 3734), ["Transcript", "Clinton's statement on signing the act, Aug. 22, 1996", APP("statement-signing-the-personal-responsibility-and-work-opportunity-reconciliation-act-1996")]] },
+ { cat: "law", q: "The Tax Cuts and Jobs Act, which also set the Affordable Care Act's individual-mandate penalty to $0, was signed in what year?", a: "2017", kind: "year", opts: ["2016", "2018", "2019"], tf: "The Tax Cuts and Jobs Act was signed in {X}.",
+   why: "President Trump signed it on December 22, 2017. Its official title is a budget reconciliation act, passed as H.R. 1. The mandate penalty dropped to $0 starting in 2019.",
+   src: [law("115publ97", "Tax Cuts and Jobs Act (reconciliation act for fiscal year 2018)"), bill(115, "H", 1)] },
+ { cat: "law", q: "The CHIPS and Science Act, funding U.S. semiconductor manufacturing, was signed in what year?", a: "2022", kind: "year", opts: ["2020", "2021", "2023"], tf: "The CHIPS and Science Act was signed in {X}.",
+   why: "President Biden signed it on August 9, 2022. It became law as H.R. 4346, a bill originally written for Legislative Branch funding and then amended.",
+   src: [law("117publ167", "CHIPS and Science Act"), bill(117, "H", 4346)] },
+ { cat: "law", q: "The USA PATRIOT Act, expanding government surveillance powers after the September 11 attacks, was signed in what year?", a: "2001", kind: "year", opts: ["2002", "2003", "2000"], tf: "The USA PATRIOT Act was signed in {X}.",
+   why: "President George W. Bush signed it on October 26, 2001, about six weeks after the attacks. The USA FREEDOM Act of 2015 later ended the NSA's bulk collection of Americans' phone records under it.",
+   src: [law("107publ56", "USA PATRIOT Act"), bill(107, "H", 3162), law("114publ23", "USA FREEDOM Act of 2015")] },
+ { cat: "law", q: "The law creating the Department of Homeland Security was signed in what year?", a: "2002", kind: "year", opts: ["2001", "2003", "2004"], tf: "The Department of Homeland Security was created by a law signed in {X}.",
+   why: "President George W. Bush signed the Homeland Security Act on November 25, 2002, the largest federal reorganization in decades.",
+   src: [law("107publ296", "Homeland Security Act of 2002"), bill(107, "H", 5005)] },
+ { cat: "law", q: "The Dodd-Frank Wall Street Reform Act, passed after the 2008 financial crisis, was signed in what year?", a: "2010", kind: "year", opts: ["2008", "2009", "2011"], tf: "Dodd-Frank was signed into law in {X}.",
+   why: "President Obama signed it on July 21, 2010. It created the Consumer Financial Protection Bureau.",
+   src: [law("111publ203", "Dodd-Frank Wall Street Reform and Consumer Protection Act"), bill(111, "H", 4173)] },
+ { cat: "law", q: "Which president signed the 2008 bank-rescue law that created TARP, the Troubled Asset Relief Program?", a: "George W. Bush", acc: ["bush", "george w bush", "george bush", "w bush", "george walker bush"], kind: "name", opts: ["Barack Obama", "Bill Clinton", "George H. W. Bush"], tf: "{X} signed the law that created TARP.",
+   why: "George W. Bush signed the Emergency Economic Stabilization Act on October 3, 2008, during the final months of his presidency.",
+   src: [law("110publ343", "Emergency Economic Stabilization Act of 2008"), bill(110, "H", 1424)] },
+ { cat: "law", q: "Which president signed the First Step Act, a bipartisan federal sentencing and prison reform law?", a: "Donald Trump", acc: ["trump", "donald trump", "donald j trump"], kind: "name", opts: ["Barack Obama", "Joe Biden", "George W. Bush"], tf: "{X} signed the First Step Act.",
+   why: "President Trump signed the First Step Act on December 21, 2018.",
+   src: [law("115publ391", "First Step Act of 2018"), bill(115, "S", 756)] },
+ { cat: "law", q: "The bipartisan Infrastructure Investment and Jobs Act was signed in what year?", a: "2021", kind: "year", opts: ["2020", "2022", "2019"], tf: "The Infrastructure Investment and Jobs Act was signed in {X}.",
+   why: "President Biden signed it on November 15, 2021.",
+   src: [law("117publ58", "Infrastructure Investment and Jobs Act"), bill(117, "H", 3684)] },
+ { cat: "law", q: "The 2025 tax-and-spending law known as the One Big Beautiful Bill Act was signed on which national holiday?", a: "Independence Day", acc: ["independence day", "july 4", "july 4th", "fourth of july", "4th of july"], kind: "name", opts: ["Memorial Day", "Labor Day", "Presidents' Day"], tf: "President Trump signed the One Big Beautiful Bill Act on {X}.",
+   why: "President Trump signed it on July 4, 2025. Its official title is a budget reconciliation act, passed as H.R. 1 of the 119th Congress.",
+   src: [law("119publ21", "One Big Beautiful Bill Act (reconciliation act)"), bill(119, "H", 1)] },
+ { cat: "law", q: "In what year was the Civil Rights Act, banning discrimination in public places and employment, signed?", a: "1964", kind: "year", opts: ["1957", "1963", "1965"], tf: "The Civil Rights Act was signed in {X}.",
+   why: "President Lyndon Johnson signed it on July 2, 1964.",
+   src: [["Archive record", "National Archives: Civil Rights Act (1964)", NARA("civil-rights-act")]] },
+ { cat: "law", q: "In what year was the Voting Rights Act signed?", a: "1965", kind: "year", opts: ["1964", "1957", "1968"], tf: "The Voting Rights Act was signed in {X}.",
+   why: "President Johnson signed it on August 6, 1965. It banned literacy tests and required certain states to get federal approval before changing voting rules.",
+   src: [["Archive record", "National Archives: Voting Rights Act (1965)", NARA("voting-rights-act")]] },
+ { cat: "law", q: "Which president signed the Social Security Act?", a: "Franklin D. Roosevelt", acc: ["fdr", "roosevelt", "franklin roosevelt", "franklin d roosevelt", "franklin delano roosevelt"], kind: "name", opts: ["Herbert Hoover", "Harry Truman", "Woodrow Wilson"], tf: "{X} signed the Social Security Act.",
+   why: "Franklin Roosevelt signed it on August 14, 1935, as part of the New Deal.",
+   src: [["Archive record", "National Archives: Social Security Act (1935)", NARA("social-security-act")]] },
+ { cat: "law", q: "Lyndon Johnson signed Medicare into law in Independence, Missouri, beside which former president who had first proposed national health insurance?", a: "Harry Truman", acc: ["truman", "harry truman", "harry s truman"], kind: "name", opts: ["Dwight Eisenhower", "John F. Kennedy", "Herbert Hoover"], tf: "Johnson signed Medicare alongside former president {X}.",
+   why: "Johnson signed the Medicare and Medicaid law on July 30, 1965, at the Truman Library. Truman had asked Congress for national health insurance in 1945.",
+   src: [["Transcript", "Remarks with President Truman at the signing of the Medicare bill, July 30, 1965", APP("remarks-with-president-truman-the-signing-independence-the-medicare-bill")], ["Archive record", "National Archives: Medicare and Medicaid Act (1965)", NARA("medicare-and-medicaid-act")]] },
+ { cat: "law", q: "Which president issued the 1948 executive order desegregating the U.S. armed forces?", a: "Harry Truman", acc: ["truman", "harry truman", "harry s truman"], kind: "name", opts: ["Franklin D. Roosevelt", "Dwight Eisenhower", "John F. Kennedy"], tf: "{X} ordered the desegregation of the armed forces in 1948.",
+   why: "Truman signed Executive Order 9981 on July 26, 1948.",
+   src: [["Archive record", "National Archives: Executive Order 9981 (1948)", NARA("executive-order-9981")]] },
+ { cat: "law", q: "The 19th Amendment, guaranteeing women the right to vote, was ratified in what year?", a: "1920", kind: "year", opts: ["1919", "1913", "1924"], tf: "The 19th Amendment was ratified in {X}.",
+   why: "Congress passed it on June 4, 1919, and the states ratified it on August 18, 1920.",
+   src: [["Archive record", "National Archives: 19th Amendment", NARA("19th-amendment")]] },
+ { cat: "law", q: "Congress passed the Gulf of Tonkin Resolution, which let President Johnson escalate the Vietnam War, in what year?", a: "1964", kind: "year", opts: ["1962", "1965", "1968"], tf: "Congress passed the Gulf of Tonkin Resolution in {X}.",
+   why: "Congress passed it in August 1964. Congress repealed it in January 1971.",
+   src: [["Archive record", "National Archives: Tonkin Gulf Resolution (1964)", NARA("tonkin-gulf-resolution")]] },
+ { cat: "law", q: "The Emancipation Proclamation took effect in what year?", a: "1863", kind: "year", opts: ["1861", "1862", "1865"], tf: "The Emancipation Proclamation took effect in {X}.",
+   why: "Lincoln issued it on January 1, 1863. It declared enslaved people in Confederate-held areas free. The 13th Amendment abolished slavery nationwide in 1865.",
+   src: [["Archive record", "National Archives: Emancipation Proclamation (1863)", NARA("emancipation-proclamation")]] },
+
+ // ---- Repealed & ended
+ { cat: "ended", q: "In what year did Congress pass the law repealing the military's 'Don't Ask, Don't Tell' policy?", a: "2010", kind: "year", opts: ["2009", "2011", "2013"], tf: "Congress repealed 'Don't Ask, Don't Tell' by law in {X}.",
+   why: "President Obama signed the repeal on December 22, 2010. It took effect on September 20, 2011, after the required military certification.",
+   src: [law("111publ321", "Don't Ask, Don't Tell Repeal Act of 2010"), bill(111, "H", 2965)] },
+ { cat: "ended", q: "Which 1999 law repealed the Glass-Steagall rules that had separated commercial and investment banking since 1933?", a: "Gramm-Leach-Bliley Act", acc: ["gramm leach bliley act", "gramm leach bliley", "glba", "financial services modernization act"], kind: "name", opts: ["Dodd-Frank Act", "Sarbanes-Oxley Act", "Riegle-Neal Act"], tf: "The {X} repealed key parts of Glass-Steagall in 1999.",
+   why: "President Clinton signed the Gramm-Leach-Bliley Act on November 12, 1999. It repealed the Glass-Steagall provisions barring banks from affiliating with securities firms.",
+   src: [law("106publ102", "Gramm-Leach-Bliley Act"), bill(106, "S", 900)] },
+ { cat: "ended", q: "No Child Left Behind was replaced by the Every Student Succeeds Act in what year?", a: "2015", kind: "year", opts: ["2012", "2009", "2017"], tf: "No Child Left Behind was replaced in {X}.",
+   why: "George W. Bush signed No Child Left Behind on January 8, 2002. Obama signed its replacement, the Every Student Succeeds Act, on December 10, 2015.",
+   src: [law("107publ110", "No Child Left Behind Act of 2001"), law("114publ95", "Every Student Succeeds Act"), bill(114, "S", 1177)] },
+ { cat: "ended", q: "Which 2022 law formally repealed the Defense of Marriage Act?", a: "Respect for Marriage Act", acc: ["respect for marriage act", "respect for marriage", "rfma"], kind: "name", opts: ["Equality Act", "Marriage Equality Act", "Defense of Families Act"], tf: "The {X} repealed the Defense of Marriage Act in 2022.",
+   why: "Bill Clinton signed DOMA on September 21, 1996. The Supreme Court struck down its federal definition of marriage in 2013 (United States v. Windsor). Biden signed the Respect for Marriage Act, repealing DOMA, on December 13, 2022.",
+   src: [law("104publ199", "Defense of Marriage Act"), law("117publ228", "Respect for Marriage Act"), bill(117, "H", 8404)] },
+ { cat: "ended", q: "NAFTA was replaced by the U.S.-Mexico-Canada Agreement (USMCA). In what year did the USMCA take effect?", a: "2020", kind: "year", opts: ["2018", "2019", "2021"], tf: "The USMCA took effect in {X}.",
+   why: "Trump signed the USMCA implementation law on January 29, 2020, and the agreement entered into force on July 1, 2020.",
+   src: [law("116publ113", "United States-Mexico-Canada Agreement Implementation Act"), ["Government page", "Office of the U.S. Trade Representative: USMCA", "https://ustr.gov/trade-agreements/free-trade-agreements/united-states-mexico-canada-agreement"]] },
+ { cat: "ended", q: "Congress repealed the Chinese Exclusion Act, which had banned most Chinese immigration since 1882, in what year?", a: "1943", kind: "year", opts: ["1924", "1952", "1965"], tf: "Congress repealed the Chinese exclusion laws in {X}.",
+   why: "Congress repealed the exclusion acts in 1943, when China was a U.S. ally in World War II.",
+   src: [["Archive record", "National Archives: Chinese Exclusion Act (1882)", NARA("chinese-exclusion-act")]] },
+ { cat: "ended", q: "Which president signed the 1988 law apologizing and paying restitution to Japanese Americans interned under Executive Order 9066?", a: "Ronald Reagan", acc: ["reagan", "ronald reagan"], kind: "name", opts: ["Jimmy Carter", "Gerald Ford", "George H. W. Bush"], tf: "{X} signed the 1988 law providing restitution for Japanese-American internment.",
+   why: "Franklin Roosevelt's Executive Order 9066 (February 19, 1942) led to the forced removal of about 120,000 people of Japanese ancestry. Reagan signed the Civil Liberties Act providing restitution on August 10, 1988.",
+   src: [["Transcript", "Reagan's remarks on signing the restitution bill, Aug. 10, 1988", APP("remarks-signing-the-bill-providing-restitution-for-the-wartime-internment-japanese")], ["Archive record", "National Archives: Executive Order 9066 (1942)", NARA("executive-order-9066")]] },
+ { cat: "ended", q: "In 1971 Nixon ended the U.S. dollar's direct convertibility into what?", a: "Gold", acc: ["gold"], kind: "name", opts: ["Silver", "British pounds", "Oil"], tf: "In 1971 Nixon suspended the convertibility of the dollar into {X}.",
+   why: "In an address on August 15, 1971, Nixon directed the Treasury to suspend the convertibility of the dollar into gold, ending the Bretton Woods system of fixed exchange rates.",
+   src: [["Transcript", "Nixon's address outlining a new economic policy, Aug. 15, 1971", APP("address-the-nation-outlining-new-economic-policy-the-challenge-peace")]] },
+ { cat: "ended", q: "In his first week in office in 2017, Trump withdrew the U.S. from which 12-nation trade agreement?", a: "Trans-Pacific Partnership", acc: ["trans pacific partnership", "tpp", "transpacific partnership"], kind: "name", opts: ["NAFTA", "Paris Agreement", "World Trade Organization"], tf: "Trump withdrew the U.S. from the {X} in January 2017.",
+   why: "A presidential memorandum signed January 23, 2017, withdrew the U.S. from the Trans-Pacific Partnership negotiations and agreement.",
+   src: [["Executive order", "Federal Register: Withdrawal from the Trans-Pacific Partnership, Jan. 23, 2017", FR("2017/01/25/2017-01845/withdrawal-of-the-united-states-from-the-trans--pacific-partnership-negotiations-and-agreement")]] },
+ { cat: "ended", q: "In May 2018, Trump ended U.S. participation in the 2015 nuclear agreement with which country?", a: "Iran", acc: ["iran"], kind: "name", opts: ["North Korea", "Russia", "Iraq"], tf: "In 2018 the U.S. left the nuclear agreement with {X}.",
+   why: "A presidential memorandum on May 8, 2018, ended U.S. participation in the Joint Comprehensive Plan of Action (JCPOA) with Iran.",
+   src: [["Executive order", "White House archive: Ceasing U.S. participation in the JCPOA, May 8, 2018", "https://trumpwhitehouse.archives.gov/presidential-actions/ceasing-u-s-participation-jcpoa-taking-additional-action-counter-irans-malign-influence-deny-iran-paths-nuclear-weapon/"]] },
+ { cat: "ended", q: "On January 20, 2025, Trump signed an order withdrawing the U.S. from which United Nations health agency?", a: "World Health Organization", acc: ["world health organization", "who", "the who"], kind: "name", opts: ["UNICEF", "Pan American Health Organization", "UNESCO"], tf: "In January 2025, Trump ordered the U.S. to withdraw from the {X}.",
+   why: "Executive Order 14155, signed on his first day back in office, withdrew the U.S. from the World Health Organization.",
+   src: [["Executive order", "Federal Register: EO 14155, Withdrawing the U.S. from the World Health Organization", FR("2025/01/29/2025-01957/withdrawing-the-united-states-from-the-world-health-organization")]] },
+ { cat: "ended", q: "U.S. military operations in Afghanistan, begun in 2001, ended in what year?", a: "2021", kind: "year", opts: ["2014", "2020", "2022"], tf: "U.S. military operations in Afghanistan ended in {X}.",
+   why: "The final U.S. troops left on August 30, 2021, under a withdrawal agreed with the Taliban in 2020 and carried out by President Biden. Biden addressed the nation the next day.",
+   src: [["Transcript", "Biden's remarks on the end of U.S. military operations in Afghanistan, Aug. 31, 2021", APP("remarks-the-end-united-states-military-operations-afghanistan")]] },
+
+ // ---- Supreme Court
+ { cat: "court", q: "Which justice wrote the majority opinion in Dobbs v. Jackson Women's Health Organization, which overturned Roe v. Wade?", a: "Samuel Alito", acc: ["alito", "samuel alito", "sam alito"], kind: "name", opts: ["John Roberts", "Clarence Thomas", "Brett Kavanaugh"], tf: "Justice {X} wrote the majority opinion in Dobbs.",
+   why: "Alito wrote the opinion, decided June 24, 2022. It overturned Roe v. Wade (1973) and Planned Parenthood v. Casey (1992), returning abortion regulation to the states.",
+   src: [["Court opinion", "Dobbs v. Jackson Women's Health Organization: opinion (PDF)", "https://www.supremecourt.gov/opinions/21pdf/19-1392_6j37.pdf"], ["Oral argument audio", "Oyez: Dobbs v. Jackson, case summary and argument audio", OY("2021/19-1392")]] },
+ { cat: "court", q: "Roe v. Wade, which recognized a constitutional right to abortion, was decided in what year?", a: "1973", kind: "year", opts: ["1969", "1971", "1977"], tf: "Roe v. Wade was decided in {X}.",
+   why: "The Court decided Roe on January 22, 1973, by a 7 to 2 vote. Dobbs overturned it in 2022.",
+   src: [["Oral argument audio", "Oyez: Roe v. Wade (410 U.S. 113)", OY("1971/70-18")]] },
+ { cat: "court", q: "The Court overturned Chevron deference, which had told judges to defer to agencies' reasonable readings of laws, in what year?", a: "2024", kind: "year", opts: ["2022", "2023", "2021"], tf: "The Supreme Court overturned Chevron deference in {X}.",
+   why: "Loper Bright Enterprises v. Raimondo, decided June 28, 2024, overruled Chevron v. Natural Resources Defense Council (1984). Chief Justice Roberts wrote the opinion.",
+   src: [["Oral argument audio", "Oyez: Loper Bright Enterprises v. Raimondo", OY("2023/22-451")], ["Oral argument audio", "Oyez: Chevron v. Natural Resources Defense Council (1984)", OY("1983/82-1005")]] },
+ { cat: "court", q: "Shelby County v. Holder struck down the formula deciding which states needed federal approval to change voting rules. In what year?", a: "2013", kind: "year", opts: ["2010", "2015", "2008"], tf: "Shelby County v. Holder was decided in {X}.",
+   why: "Decided June 25, 2013, by 5 to 4, with Chief Justice Roberts writing. It struck down the coverage formula in Section 4(b) of the 1965 Voting Rights Act.",
+   src: [["Oral argument audio", "Oyez: Shelby County v. Holder (570 U.S. 529)", OY("2012/12-96")], ["Archive record", "National Archives: Voting Rights Act (1965)", NARA("voting-rights-act")]] },
+ { cat: "court", q: "Which justice wrote the majority opinion in Obergefell v. Hodges, establishing a nationwide right to same-sex marriage?", a: "Anthony Kennedy", acc: ["kennedy", "anthony kennedy"], kind: "name", opts: ["Ruth Bader Ginsburg", "John Roberts", "Sonia Sotomayor"], tf: "Justice {X} wrote the majority opinion in Obergefell v. Hodges.",
+   why: "Kennedy wrote the 5 to 4 opinion, decided June 26, 2015. He had also written United States v. Windsor (2013), which struck down part of DOMA.",
+   src: [["Oral argument audio", "Oyez: Obergefell v. Hodges", OY("2014/14-556")], ["Oral argument audio", "Oyez: United States v. Windsor", OY("2012/12-307")]] },
+ { cat: "court", q: "In 2012, which justice wrote the opinion upholding the Affordable Care Act's individual mandate as a tax?", a: "John Roberts", acc: ["roberts", "john roberts", "chief justice roberts"], kind: "name", opts: ["Anthony Kennedy", "Antonin Scalia", "Elena Kagan"], tf: "Justice {X} wrote the 2012 opinion upholding the individual mandate as a tax.",
+   why: "In National Federation of Independent Business v. Sebelius, decided June 28, 2012, Chief Justice Roberts joined the four liberal justices to uphold the mandate under Congress's taxing power.",
+   src: [["Oral argument audio", "Oyez: NFIB v. Sebelius", OY("2011/11-393")]] },
+ { cat: "court", q: "The Supreme Court ended race-conscious college admissions in Students for Fair Admissions v. Harvard in what year?", a: "2023", kind: "year", opts: ["2020", "2021", "2024"], tf: "The Supreme Court ended race-conscious college admissions in {X}.",
+   why: "Decided June 29, 2023, with Chief Justice Roberts writing for the majority.",
+   src: [["Oral argument audio", "Oyez: Students for Fair Admissions v. Harvard", OY("2022/20-1199")]] },
+ { cat: "court", q: "Brown v. Board of Education overturned the 'separate but equal' doctrine from which 1896 case?", a: "Plessy v. Ferguson", acc: ["plessy v ferguson", "plessy", "plessy vs ferguson"], kind: "name", opts: ["Dred Scott v. Sandford", "Marbury v. Madison", "Korematsu v. United States"], tf: "Brown v. Board of Education overturned {X}.",
+   why: "On May 17, 1954, Chief Justice Earl Warren delivered the unanimous Brown ruling, overruling the separate-but-equal principle of Plessy v. Ferguson (1896) in public education.",
+   src: [["Archive record", "National Archives: Brown v. Board of Education (1954)", NARA("brown-v-board-of-education")], ["Archive record", "National Archives: Plessy v. Ferguson (1896)", NARA("plessy-v-ferguson")], ["Oral argument audio", "Oyez: Brown v. Board of Education", OY("1940-1955/347us483")]] },
+ { cat: "court", q: "In United States v. Nixon (1974), the Supreme Court unanimously ordered President Nixon to hand over what?", a: "The White House tapes", acc: ["tapes", "the tapes", "white house tapes", "oval office tapes", "recordings", "audio tapes", "watergate tapes"], kind: "name", opts: ["His tax returns", "His impeachment testimony", "Classified war plans"], tf: "In United States v. Nixon, the Court ordered Nixon to hand over {X}.",
+   why: "Decided July 24, 1974, by 8 to 0 (Justice Rehnquist did not take part). The tapes revealed Nixon's role in the Watergate cover-up, and he resigned 16 days later.",
+   src: [["Oral argument audio", "Oyez: United States v. Nixon (418 U.S. 683)", OY("1973/73-1766")]] },
+ { cat: "court", q: "Citizens United v. FEC, allowing unlimited independent political spending by corporations and unions, was decided in what year?", a: "2010", kind: "year", opts: ["2008", "2012", "2014"], tf: "Citizens United v. FEC was decided in {X}.",
+   why: "Decided January 21, 2010, by 5 to 4, with Justice Kennedy writing.",
+   src: [["Oral argument audio", "Oyez: Citizens United v. FEC (558 U.S. 310)", OY("2008/08-205")]] },
+ { cat: "court", q: "Bush v. Gore, which ended the Florida recount and decided a presidential election, was decided in what year?", a: "2000", kind: "year", opts: ["2001", "2004", "1996"], tf: "Bush v. Gore was decided in {X}.",
+   why: "Decided December 12, 2000.",
+   src: [["Oral argument audio", "Oyez: Bush v. Gore (531 U.S. 98)", OY("2000/00-949")]] },
+ { cat: "court", q: "District of Columbia v. Heller (2008) held that which constitutional amendment protects an individual's right to keep a handgun at home?", a: "Second Amendment", acc: ["second amendment", "2nd amendment", "the second amendment", "second", "2nd", "2"], kind: "name", opts: ["Fourth Amendment", "Fourteenth Amendment", "Ninth Amendment"], tf: "Heller held that the {X} protects an individual right to keep a handgun at home.",
+   why: "Decided June 26, 2008, by 5 to 4, with Justice Scalia writing.",
+   src: [["Oral argument audio", "Oyez: District of Columbia v. Heller (554 U.S. 570)", OY("2007/07-290")]] },
+
+ // ---- Promises & claims
+ { cat: "promise", status: ["Not kept", "no"], q: "George H. W. Bush pledged 'Read my lips: no new taxes' in 1988. In what year did he sign a budget law that raised taxes?", a: "1990", kind: "year", opts: ["1989", "1991", "1992"], tf: "Bush signed a tax-raising budget law in {X}, two years after his pledge.",
+   why: "Bush made the pledge accepting the Republican nomination on August 18, 1988. He signed the Omnibus Budget Reconciliation Act of 1990, a deficit-reduction deal with tax increases, on November 5, 1990.",
+   src: [["Transcript", "Bush's 1988 Republican convention acceptance address", APP("address-accepting-the-presidential-nomination-the-republican-national-convention-new")], ["Video", "C-SPAN: 1988 George H. W. Bush convention speech", "https://www.c-span.org/program/historic-convention-speeches/1988-george-hw-bush-speech/193773"], ["Transcript", "Bush's statement on signing the Omnibus Budget Reconciliation Act of 1990", APP("statement-signing-the-omnibus-budget-reconciliation-act-1990")]] },
+ { cat: "promise", status: ["Not kept", "no"], q: "Obama's January 2009 executive order said Guantanamo's detention facility would close no later than how many years from that date?", a: "1", acc: ["1", "one", "1 year", "one year", "a year"], kind: "number", opts: ["2", "4", "6 months"], tf: "Obama's 2009 order set a deadline of {X} year(s) to close the Guantanamo detention facility.",
+   why: "Executive Order 13492, signed January 22, 2009, ordered closure 'no later than 1 year' from that date. Congress then restricted transferring detainees, and the facility was never closed under Obama.",
+   src: [["Executive order", "Federal Register: EO 13492, Guantanamo review and closure", FR("2009/01/27/E9-1893/review-and-disposition-of-individuals-detained-at-the-guantanamo-bay-naval-base-and-closure-of")], ["Transcript", "Text of EO 13492 (American Presidency Project)", APP("executive-order-13492-review-and-disposition-individuals-detained-the-guantanamo-bay-naval")]] },
+ { cat: "promise", status: ["Reversed later", "part"], q: "In 2018, which president signed an order revoking Obama's directive to close the Guantanamo detention facility?", a: "Donald Trump", acc: ["trump", "donald trump"], kind: "name", opts: ["Joe Biden", "George W. Bush", "Barack Obama"], tf: "{X} revoked Obama's Guantanamo closure order in 2018.",
+   why: "Trump signed Executive Order 13823 on January 30, 2018, keeping the facility open and revoking the closure section of EO 13492.",
+   src: [["Executive order", "Federal Register: EO 13823, Protecting America Through Lawful Detention of Terrorists", FR("2018/02/02/2018-02261/protecting-america-through-lawful-detention-of-terrorists")]] },
+ { cat: "promise", status: ["Not kept", "no"], q: "Whose promise 'If you like your health care plan, you'll be able to keep your health care plan' was named PolitiFact's 2013 Lie of the Year?", a: "Barack Obama", acc: ["obama", "barack obama"], kind: "name", opts: ["Joe Biden", "Nancy Pelosi", "Hillary Clinton"], tf: "The 'keep your plan' promise PolitiFact named 2013's Lie of the Year was made by {X}.",
+   why: "Obama made the promise repeatedly, including to the American Medical Association on June 15, 2009. In late 2013, as ACA rules took effect, millions of people received cancellation notices for individual plans.",
+   src: [["Transcript", "Obama's remarks to the American Medical Association, June 15, 2009", APP("remarks-the-american-medical-association-national-conference-chicago-illinois")], ["Fact-check", "PolitiFact: Lie of the Year 2013", "https://www.politifact.com/article/2013/dec/12/lie-year-if-you-like-your-health-care-plan-keep-it/"]] },
+ { cat: "promise", status: ["Not kept", "no"], q: "Trump said Mexico would pay for a border wall. Instead, to redirect federal money to the wall, he declared a national emergency in what year?", a: "2019", kind: "year", opts: ["2017", "2018", "2020"], tf: "Trump declared a national emergency at the southern border in {X}.",
+   why: "Trump said he would 'have Mexico pay for that wall' when announcing his campaign on June 16, 2015. Mexico did not pay. After Congress declined his full funding request, he issued Proclamation 9844 on February 15, 2019.",
+   src: [["Transcript", "Trump's remarks announcing his candidacy, June 16, 2015", APP("remarks-announcing-candidacy-for-president-new-york-city")], ["Video", "C-SPAN: Donald Trump presidential campaign announcement", "https://www.c-span.org/video/?326473-1/donald-trump-presidential-campaign-announcement"], ["Executive order", "Federal Register: Proclamation 9844, national emergency at the southern border", FR("2019/02/20/2019-03011/declaring-a-national-emergency-concerning-the-southern-border-of-the-united-states")]] },
+ { cat: "promise", status: ["Not kept", "no"], q: "Three Republican senators voted against the 2017 'skinny repeal' of the Affordable Care Act. Two were Susan Collins and Lisa Murkowski. Who was the third?", a: "John McCain", acc: ["mccain", "john mccain"], kind: "name", opts: ["Rand Paul", "Mitt Romney", "Ted Cruz"], tf: "{X} joined Collins and Murkowski in voting against the 2017 'skinny repeal'.",
+   why: "The amendment failed 49 to 51 on Senate vote 179, at about 1:30 a.m. on July 28, 2017. McCain's late-night thumbs-down was the decisive moment. Repealing the ACA had been a central Trump and Republican promise.",
+   src: [["Roll-call vote", "Senate vote 179 (115th Congress): McConnell Amendment No. 667", SEN(115, 1, 179)], ["Video", "C-SPAN: Sen. John McCain votes against health care repeal", "https://www.c-span.org/clip/us-senate/senator-john-mccain-r-az-votes-against-health-care-repeal/4680665"]] },
+ { cat: "promise", status: ["Kept", "ok"], q: "On his first day in office, Joe Biden rejoined which international agreement that Trump had left?", a: "Paris Agreement", acc: ["paris agreement", "paris climate agreement", "paris accord", "paris climate accord", "paris"], kind: "name", opts: ["Iran nuclear deal", "Trans-Pacific Partnership", "Open Skies Treaty"], tf: "On his first day in office, Biden rejoined the {X}.",
+   why: "Trump announced the withdrawal on June 1, 2017, and it took effect in November 2020. Biden signed the instrument to rejoin on January 20, 2021, as he had promised during the campaign.",
+   src: [["Transcript", "Trump's remarks announcing withdrawal from the Paris Agreement, June 1, 2017", APP("remarks-announcing-united-states-withdrawal-from-the-united-nations-framework-convention")], ["Video", "C-SPAN: President Trump on climate agreement", "https://www.c-span.org/clip/white-house-event/president-trump-on-climate-agreement/4672003"], ["Government page", "White House archive: Paris Climate Agreement, Jan. 20, 2021", "https://bidenwhitehouse.archives.gov/briefing-room/statements-releases/2021/01/20/paris-climate-agreement/"]] },
+ { cat: "promise", status: ["Kept", "ok"], q: "Trump ordered a second U.S. withdrawal from the Paris climate agreement in what year?", a: "2025", kind: "year", opts: ["2021", "2024", "2026"], tf: "Trump ordered a second withdrawal from the Paris Agreement in {X}.",
+   why: "Executive Order 14162, signed January 20, 2025, the first day of his second term, directed withdrawal from the Paris Agreement.",
+   src: [["Executive order", "Federal Register: EO 14162, Putting America First in International Environmental Agreements", FR("2025/01/30/2025-02010/putting-america-first-in-international-environmental-agreements")]] },
+ { cat: "promise", status: ["Kept", "ok"], q: "In a February 2020 debate, Joe Biden pledged to put the first Black woman on the Supreme Court. Whom did he nominate?", a: "Ketanji Brown Jackson", acc: ["ketanji brown jackson", "ketanji jackson", "jackson", "ketanji"], kind: "name", opts: ["Kamala Harris", "Leondra Kruger", "J. Michelle Childs"], tf: "Biden fulfilled his pledge by nominating {X}.",
+   why: "Biden made the pledge at the South Carolina debate on February 25, 2020. He nominated Jackson on February 25, 2022, and the Senate confirmed her 53 to 47 on April 7, 2022.",
+   src: [["Transcript", "Democratic candidates debate in Charleston, S.C., Feb. 25, 2020", APP("democratic-candidates-debate-charleston-south-carolina-0")], ["Video", "C-SPAN: CBS hosts Democratic presidential debate in South Carolina", "https://www.c-span.org/program/campaign-2020/cbs-hosts-democratic-presidential-debate-in-south-carolina/541754"], ["Transcript", "Biden's remarks on nominating Ketanji Brown Jackson, Feb. 25, 2022", APP("remarks-the-nomination-ketanji-brown-jackson-be-united-states-supreme-court-associate")], ["Roll-call vote", "Senate vote 134 (117th Congress): Jackson confirmation", SEN(117, 2, 134)]] },
+ { cat: "promise", status: ["Blocked by courts", "no"], q: "In what year did the Supreme Court strike down President Biden's plan to cancel up to $20,000 in student debt per borrower?", a: "2023", kind: "year", opts: ["2022", "2024", "2021"], tf: "The Supreme Court struck down Biden's student-debt cancellation plan in {X}.",
+   why: "Biden announced the plan on August 24, 2022: up to $10,000 per borrower, or $20,000 for Pell Grant recipients. In Biden v. Nebraska, decided June 30, 2023, by 6 to 3, the Court ruled the Education Department lacked the authority.",
+   src: [["Transcript", "Biden's remarks on student loan debt relief, Aug. 24, 2022", APP("remarks-student-loan-debt-relief-and-exchange-with-reporters")], ["Oral argument audio", "Oyez: Biden v. Nebraska", OY("2022/22-506")]] },
+ { cat: "promise", status: ["Kept", "ok"], q: "On his first day in office, Biden revoked the permit for which oil pipeline from Canada?", a: "Keystone XL", acc: ["keystone xl", "keystone", "keystone pipeline", "keystone xl pipeline"], kind: "name", opts: ["Dakota Access", "Line 3", "Mountain Valley"], tf: "Biden revoked the permit for the {X} pipeline on his first day.",
+   why: "Executive Order 13990, signed January 20, 2021, revoked the 2019 permit for the Keystone XL pipeline, as Biden had promised during his campaign.",
+   src: [["Executive order", "Federal Register: EO 13990, climate and environment actions", FR("2021/01/25/2021-01765/protecting-public-health-and-the-environment-and-restoring-science-to-tackle-the-climate-crisis")]] },
+ { cat: "promise", status: ["Kept in revised form", "part"], q: "In Trump v. Hawaii (2018), did the Supreme Court uphold or strike down the third version of Trump's travel ban?", a: "Upheld", acc: ["upheld", "uphold", "upheld it", "it was upheld"], kind: "name", opts: ["Struck down", "Sent back to lower courts", "Declined to hear it"], tf: "In Trump v. Hawaii, the Supreme Court {X} the travel ban.",
+   why: "As a candidate, Trump called on December 7, 2015, for 'a total and complete shutdown of Muslims entering the United States'. His first entry ban (EO 13769, January 27, 2017) was blocked by courts. The Court upheld the third version, Proclamation 9645, by 5 to 4 on June 26, 2018.",
+   src: [["Transcript", "Trump campaign statement on preventing Muslim immigration, Dec. 7, 2015", APP("statement-donald-j-trump-statement-preventing-muslim-immigration")], ["Executive order", "Federal Register: EO 13769, Jan. 27, 2017", FR("2017/02/01/2017-02281/protecting-the-nation-from-foreign-terrorist-entry-into-the-united-states")], ["Oral argument audio", "Oyez: Trump v. Hawaii", OY("2017/17-965")]] },
+ { cat: "promise", status: ["Not kept", "no"], q: "The 1980 Republican platform called for eliminating which cabinet department, a goal revived by a 2025 executive order?", a: "Department of Education", acc: ["department of education", "education department", "education", "doe", "ed"], kind: "name", opts: ["Department of Energy", "Department of Commerce", "Department of Labor"], tf: "The 1980 Republican platform called for eliminating the {X}.",
+   why: "The 1980 platform 'encourages the elimination of the federal Department of Education'. Reagan's administration did not achieve it. Trump's Executive Order 14242 (March 20, 2025) directed the Education Secretary to begin closing the department to the extent permitted by law. Abolishing a cabinet department requires an act of Congress.",
+   src: [["Transcript", "Republican Party Platform of 1980", APP("republican-party-platform-1980")], ["Executive order", "Federal Register: EO 14242, March 20, 2025", FR("2025/03/25/2025-05213/improving-education-outcomes-by-empowering-parents-states-and-communities")]] },
+ { cat: "promise", status: ["Kept", "ok"], q: "In October 2011, Obama announced that the remaining U.S. troops would leave Iraq by the end of which year?", a: "2011", kind: "year", opts: ["2012", "2013", "2014"], tf: "Obama announced U.S. troops would leave Iraq by the end of {X}.",
+   why: "Obama announced on October 21, 2011, that 'as promised, the rest of our troops in Iraq will come home by the end of the year'. The last U.S. troops left in December 2011.",
+   src: [["Transcript", "Obama's remarks on the withdrawal of U.S. military personnel from Iraq, Oct. 21, 2011", APP("remarks-the-withdrawal-united-states-military-personnel-from-iraq")]] },
+ { cat: "promise", status: ["Claim did not hold", "no"], q: "On May 1, 2003, beneath a 'Mission Accomplished' banner, President Bush declared that major combat operations had ended in which country?", a: "Iraq", acc: ["iraq"], kind: "name", opts: ["Afghanistan", "Kuwait", "Syria"], tf: "On May 1, 2003, Bush declared major combat operations over in {X}.",
+   why: "Bush spoke aboard the USS Abraham Lincoln. The banner read 'Mission Accomplished', but Bush never said those words in the speech. Fighting continued for years, and U.S. troops stayed in Iraq until December 2011.",
+   src: [["Transcript", "Bush's address to the nation from the USS Abraham Lincoln, May 1, 2003", APP("address-the-nation-iraq-from-the-uss-abraham-lincoln")], ["Video", "C-SPAN: End of combat operations in Iraq", "https://www.c-span.org/program/white-house-event/end-of-combat-operations-in-iraq/117346"]] },
+ { cat: "promise", status: ["Claim did not hold", "no"], q: "Nixon told newspaper editors 'I am not a crook' in November 1973. In what year did he announce his resignation?", a: "1974", kind: "year", opts: ["1973", "1975", "1976"], tf: "Nixon announced his resignation in {X}.",
+   why: "Nixon made the remark on November 17, 1973, in Orlando. He announced his resignation in a televised address on August 8, 1974, effective at noon the next day.",
+   src: [["Transcript", "Nixon's question-and-answer session with AP managing editors, Nov. 17, 1973", APP("question-and-answer-session-the-annual-convention-the-associated-press-managing-editors")], ["Transcript", "Nixon's address announcing his decision to resign, Aug. 8, 1974", APP("address-the-nation-announcing-decision-resign-the-office-president-the-united-states")], ["Video", "C-SPAN: President Nixon's resignation address", "https://www.c-span.org/program/white-house-event/president-nixons-resignation-address/357492"]] },
+ { cat: "promise", status: ["Dropped", "no"], q: "A $15 federal minimum wage was dropped from the 2021 American Rescue Plan. How many senators voted to keep it in on March 5, 2021?", a: "42", acc: ["42", "forty two", "forty-two"], kind: "number", opts: ["50", "49", "58"], tf: "{X} senators voted to keep the $15 minimum wage in the American Rescue Plan.",
+   why: "The motion on Sen. Sanders's amendment failed 42 to 58 on Senate vote 74, with some Democrats voting no. Biden signed the American Rescue Plan without it on March 11, 2021.",
+   src: [["Roll-call vote", "Senate vote 74 (117th Congress): Sanders Amendment No. 972", SEN(117, 1, 74)], law("117publ2", "American Rescue Plan Act of 2021")] },
+ { cat: "promise", status: ["Kept", "ok"], q: "On his first full day in office in 1977, which president pardoned Vietnam-era draft evaders, as he had promised?", a: "Jimmy Carter", acc: ["carter", "jimmy carter"], kind: "name", opts: ["Gerald Ford", "Richard Nixon", "Ronald Reagan"], tf: "{X} pardoned Vietnam-era draft evaders in January 1977.",
+   why: "Carter issued Proclamation 4483 on January 21, 1977, pardoning violations of the Selective Service Act from 1964 to 1973.",
+   src: [["Transcript", "Proclamation 4483: pardon for Selective Service Act violations", APP("proclamation-4483-granting-pardon-for-violations-the-selective-service-act-august-4-1964")]] },
+ { cat: "promise", status: ["Blocked by courts", "no"], q: "The Trump administration announced it would end DACA in 2017. In what year did the Supreme Court block that rescission?", a: "2020", kind: "year", opts: ["2018", "2019", "2021"], tf: "The Supreme Court blocked the DACA rescission in {X}.",
+   why: "DACA was announced on June 15, 2012. Trump issued a statement on ending it on September 5, 2017. In DHS v. Regents of the University of California, decided June 18, 2020, the Court ruled the rescission was 'arbitrary and capricious' under federal administrative law.",
+   src: [["Transcript", "White House release announcing DACA, June 15, 2012", APP("white-house-press-release-secretary-napolitano-announces-deferred-action-process-for-young")], ["Transcript", "Trump's statement on the DACA policy, Sept. 5, 2017", APP("statement-the-deferred-action-for-childhood-arrivals-policy")], ["Oral argument audio", "Oyez: DHS v. Regents of the University of California", OY("2019/18-587")]] },
+
+ // ---- People & votes
+ { cat: "people", q: "Who cast the tie-breaking vote to confirm Betsy DeVos as Secretary of Education in 2017?", a: "Mike Pence", acc: ["pence", "mike pence", "vice president pence"], kind: "name", opts: ["Mitch McConnell", "Paul Ryan", "Joe Biden"], tf: "{X} broke the tie to confirm Betsy DeVos.",
+   why: "The Senate split 50 to 50 on February 7, 2017, and Vice President Pence voted yes. It was the first time a vice president broke a tie on a cabinet nomination.",
+   src: [["Roll-call vote", "Senate vote 54 (115th Congress): DeVos confirmation", SEN(115, 1, 54)]] },
+ { cat: "people", q: "Who cast the tie-breaking Senate vote to pass the Inflation Reduction Act in August 2022?", a: "Kamala Harris", acc: ["harris", "kamala harris", "vice president harris"], kind: "name", opts: ["Joe Manchin", "Chuck Schumer", "Kyrsten Sinema"], tf: "{X} cast the tie-breaking vote to pass the Inflation Reduction Act.",
+   why: "The Senate split 50 to 50 on August 7, 2022, and Vice President Harris voted yes. Biden signed the law on August 16, 2022.",
+   src: [["Roll-call vote", "Senate vote 325 (117th Congress): passage of H.R. 5376", SEN(117, 2, 325)], law("117publ169", "Inflation Reduction Act of 2022")] },
+ { cat: "people", q: "Who was the first U.S. president to be impeached twice by the House?", a: "Donald Trump", acc: ["trump", "donald trump"], kind: "name", opts: ["Bill Clinton", "Andrew Johnson", "Richard Nixon"], tf: "{X} was the first president impeached twice.",
+   why: "The House impeached Trump on December 18, 2019 (abuse of power and obstruction of Congress) and on January 13, 2021 (incitement of insurrection). The Senate acquitted him both times, on February 5, 2020, and February 13, 2021.",
+   src: [["Roll-call vote", "House roll call 695 (2019): Article I", HOU("2019695")], ["Roll-call vote", "House roll call 17 (2021): impeachment", HOU("202117")], ["Roll-call vote", "Senate vote 33 (116th Congress): verdict on Article I", SEN(116, 2, 33)], ["Roll-call vote", "Senate vote 59 (117th Congress): verdict", SEN(117, 1, 59)]] },
+ { cat: "people", q: "The House impeached Bill Clinton in December 1998. In what year did the Senate acquit him?", a: "1999", kind: "year", opts: ["1998", "2000", "1997"], tf: "The Senate acquitted Bill Clinton in {X}.",
+   why: "The House approved two articles on December 19, 1998 (perjury and obstruction of justice). The Senate voted not guilty on both on February 12, 1999.",
+   src: [["Roll-call vote", "House roll call 543 (1998): first article", HOU("1998543")], ["Roll-call vote", "Senate vote 17 (106th Congress): verdict on Article I", SEN(106, 1, 17)], ["Roll-call vote", "Senate vote 18 (106th Congress): verdict on Article II", SEN(106, 1, 18)]] },
+ { cat: "people", q: "Which president pardoned Richard Nixon a month after Nixon resigned?", a: "Gerald Ford", acc: ["ford", "gerald ford", "gerald r ford"], kind: "name", opts: ["Jimmy Carter", "Spiro Agnew", "Nelson Rockefeller"], tf: "{X} pardoned Richard Nixon.",
+   why: "Ford issued Proclamation 4311 on September 8, 1974, a full pardon for offenses Nixon committed or may have committed as president.",
+   src: [["Transcript", "Proclamation 4311: granting pardon to Richard Nixon", APP("proclamation-4311-granting-pardon-richard-nixon")], ["Transcript", "Ford's remarks on signing the pardon", APP("remarks-signing-proclamation-granting-pardon-richard-nixon")]] },
+ { cat: "people", q: "Police arrested five burglars inside the Democratic National Committee's Watergate offices in what year?", a: "1972", kind: "year", opts: ["1971", "1973", "1974"], tf: "The Watergate break-in arrests happened in {X}.",
+   why: "Washington police arrested the burglars early on June 17, 1972, after a security guard found tape on a door lock. The National Archives holds the building security log entry from that night.",
+   src: [["Law-enforcement record", "FBI: Watergate (famous cases and criminal investigation files)", "https://www.fbi.gov/history/cases-and-criminals/watergate"], ["Archive record", "National Archives: Records of the Watergate Special Prosecution Force (includes the security log)", "https://www.archives.gov/research/investigations/watergate"], ["Oral argument audio", "Oyez: United States v. Nixon", OY("1973/73-1766")]] },
+ { cat: "people", q: "How many senators voted to confirm Ketanji Brown Jackson to the Supreme Court in 2022?", a: "53", acc: ["53", "fifty three", "fifty-three"], kind: "number", opts: ["50", "51", "60"], tf: "{X} senators voted to confirm Ketanji Brown Jackson.",
+   why: "The Senate confirmed her 53 to 47 on April 7, 2022. All 50 Democrats were joined by Republicans Susan Collins, Lisa Murkowski and Mitt Romney.",
+   src: [["Roll-call vote", "Senate vote 134 (117th Congress): Jackson confirmation", SEN(117, 2, 134)]] }
+];
+
+/* ---------- current administration (Trump, second term, from Jan. 20, 2025) ---------- */
+const DOCK = d => `https://www.supremecourt.gov/docket/docketfiles/html/public/${d}.html`;
+const FRP = "https://www.federalregister.gov/presidential-documents/executive-orders/donald-trump/2025";
+const eo = (n, path, label) => ["Executive order", `Federal Register: EO ${n}, ${label}`, FR(path)];
+Q.push(
+ { cat: "now", q: "What was the first law Trump signed in his second term, in January 2025?", a: "Laken Riley Act", acc: ["laken riley act", "laken riley"], kind: "name", opts: ["One Big Beautiful Bill Act", "GENIUS Act", "TAKE IT DOWN Act"], tf: "The first law Trump signed in his second term was the {X}.",
+   why: "Trump signed the Laken Riley Act (S. 5) on January 29, 2025. It requires the Department of Homeland Security to take into custody noncitizens charged with theft and certain other crimes. It is Public Law 119-1, the first law of the 119th Congress.",
+   src: [law("119publ1", "Laken Riley Act"), bill(119, "S", 5)] },
+ { cat: "now", q: "According to the Federal Register, how many executive orders did Trump sign on Inauguration Day, January 20, 2025?", a: "26", acc: ["26", "twenty six", "twenty-six"], kind: "number", opts: ["9", "17", "42"], tf: "Trump signed {X} executive orders on January 20, 2025.",
+   why: "The Federal Register lists 26 executive orders signed that day, numbered 14147 through 14172. They included withdrawing from the World Health Organization and the Paris Agreement, creating DOGE, and limiting birthright citizenship.",
+   src: [["Executive order", "Federal Register: Donald Trump's 2025 executive orders", FRP]] },
+ { cat: "now", q: "According to the Federal Register, how many executive orders did Trump sign in calendar year 2025?", a: "225", acc: ["225"], kind: "number", opts: ["143", "182", "310"], tf: "Trump signed {X} executive orders in 2025.",
+   why: "The Federal Register lists 225 executive orders signed from January 20 through December 31, 2025, from EO 14147 to EO 14371.",
+   src: [["Executive order", "Federal Register: Donald Trump's 2025 executive orders", FRP]] },
+ { cat: "now", q: "Executive Order 14158 created an initiative known by the acronym DOGE. What does it stand for?", a: "Department of Government Efficiency", acc: ["department of government efficiency", "government efficiency"], kind: "name", opts: ["Division of Oversight and General Ethics", "Department of Government Enforcement", "Directorate of Governance and Evaluation"], tf: "DOGE stands for the {X}.",
+   why: "Trump signed EO 14158 on January 20, 2025. It renamed the U.S. Digital Service and set up a temporary DOGE organization inside it.",
+   src: [eo(14158, "2025/01/29/2025-02005/establishing-and-implementing-the-presidents-department-of-government-efficiency", "Establishing the Department of Government Efficiency")] },
+ { cat: "now", q: "Executive Order 14172 directed that the Gulf of Mexico be renamed what?", a: "Gulf of America", acc: ["gulf of america"], kind: "name", opts: ["Gulf of Liberty", "American Gulf", "Gulf of the Americas"], tf: "EO 14172 renamed the Gulf of Mexico the {X}.",
+   why: "The January 20, 2025 order, 'Restoring Names That Honor American Greatness', renamed the Gulf of Mexico the Gulf of America for federal use. It also restored the name Mount McKinley to North America's tallest peak.",
+   src: [eo(14172, "2025/01/31/2025-02096/restoring-names-that-honor-american-greatness", "Restoring Names That Honor American Greatness"), ["Transcript", "Text of EO 14172 (American Presidency Project)", APP("executive-order-14172-restoring-names-that-honor-american-greatness")]] },
+ { cat: "now", q: "An August 2026 executive order renamed which Great Lake 'Lake America'?", a: "Lake Ontario", acc: ["lake ontario", "ontario"], kind: "name", opts: ["Lake Erie", "Lake Michigan", "Lake Superior"], tf: "An August 2026 order renamed {X} as Lake America.",
+   why: "EO 14422, signed August 27, 2026, is titled 'Honoring the American History of the Great Lakes and Renaming Lake Ontario as Lake America'.",
+   src: [eo(14422, "2026/09/02/2026-18020/honoring-the-american-history-of-the-great-lakes-and-renaming-lake-ontario-as-lake-america", "Renaming Lake Ontario as Lake America")] },
+ { cat: "now", q: "A September 2025 executive order revived which historic name for the Department of Defense?", a: "Department of War", acc: ["department of war", "war department", "war"], kind: "name", opts: ["Department of the Army", "Department of National Security", "Department of Armed Forces"], tf: "A 2025 order revived the name {X} for the Defense Department.",
+   why: "EO 14347, 'Restoring the United States Department of War', was signed September 5, 2025. The department was called the War Department until 1947. A permanent legal change to its name requires an act of Congress.",
+   src: [eo(14347, "2025/09/10/2025-17508/restoring-the-united-states-department-of-war", "Restoring the United States Department of War")] },
+ { cat: "now", q: "A March 2025 executive order designated what as the official language of the United States?", a: "English", acc: ["english"], kind: "name", opts: ["None (no official language)", "English and Spanish", "American English and ASL"], tf: "A 2025 order designated {X} as the official U.S. language.",
+   why: "EO 14224, signed March 1, 2025, designated English as the official language. Before it, the United States had no official language at the federal level.",
+   src: [eo(14224, "2025/03/06/2025-03694/designating-english-as-the-official-language-of-the-united-states", "Designating English as the Official Language")] },
+ { cat: "now", q: "A March 2025 executive order established a strategic government reserve of which cryptocurrency?", a: "Bitcoin", acc: ["bitcoin", "btc"], kind: "name", opts: ["Ethereum", "Dogecoin", "A new federal stablecoin"], tf: "A 2025 order created a strategic reserve of {X}.",
+   why: "EO 14233, signed March 6, 2025, established the Strategic Bitcoin Reserve and a U.S. Digital Asset Stockpile.",
+   src: [eo(14233, "2025/03/11/2025-03992/establishment-of-the-strategic-bitcoin-reserve-and-united-states-digital-asset-stockpile", "Strategic Bitcoin Reserve")] },
+ { cat: "now", status: ["Blocked by courts", "no"], q: "In Trump v. Barbara (2026), did the Supreme Court uphold or strike down Trump's order limiting birthright citizenship?", a: "Struck down", acc: ["struck down", "strike down", "struck it down", "struck", "blocked", "invalidated", "rejected"], kind: "name", opts: ["Upheld", "Upheld in part", "Dismissed the case"], tf: "In Trump v. Barbara, the Supreme Court {X} the birthright citizenship order.",
+   why: "EO 14160 (January 20, 2025) denied citizenship to children of parents present unlawfully or temporarily. On June 30, 2026, the Court ruled 5 to 4 that the 14th Amendment's Citizenship Clause guarantees those children citizenship. Chief Justice Roberts wrote, joined by Justices Sotomayor, Kagan, Barrett and Jackson.",
+   src: [eo(14160, "2025/01/29/2025-02007/protecting-the-meaning-and-value-of-american-citizenship", "Protecting the Meaning and Value of American Citizenship"), ["Oral argument audio", "Oyez: Trump v. Barbara", OY("2025/25-365")], ["Court docket", "Supreme Court docket 25-365", DOCK("25-365")]] },
+ { cat: "now", q: "Which justice wrote Trump v. CASA (2025), which limited federal judges' 'universal' injunctions against executive actions?", a: "Amy Coney Barrett", acc: ["barrett", "amy coney barrett", "amy barrett", "coney barrett"], kind: "name", opts: ["John Roberts", "Neil Gorsuch", "Brett Kavanaugh"], tf: "Justice {X} wrote Trump v. CASA.",
+   why: "Decided June 27, 2025, by 6 to 3. The case arose from lower-court orders blocking the birthright citizenship order nationwide. The Court held that federal courts likely lack authority to block an executive action for people beyond the parties to a case.",
+   src: [["Oral argument audio", "Oyez: Trump v. CASA", OY("2024/24A884")], ["Court docket", "Supreme Court docket 24A884", DOCK("24A884")]] },
+ { cat: "now", status: ["Blocked by courts", "no"], q: "In Learning Resources v. Trump (February 2026), the Court ruled that the emergency-powers law IEEPA does not let the president impose what?", a: "Tariffs", acc: ["tariffs", "tariff", "import taxes", "duties", "taxes on imports"], kind: "name", opts: ["Sanctions", "Export controls", "Travel bans"], tf: "The Court ruled IEEPA does not authorize the president to impose {X}.",
+   why: "On April 2, 2025, Trump imposed 'reciprocal' tariffs under the International Emergency Economic Powers Act (EO 14257). On February 20, 2026, the Court ruled 6 to 3, in an opinion by Chief Justice Roberts, that the power to tax belongs to Congress and IEEPA does not delegate it. That same day Trump signed EO 14389, 'Ending Certain Tariff Actions'.",
+   src: [["Oral argument audio", "Oyez: Learning Resources v. Trump", OY("2025/24-1287")], ["Court docket", "Supreme Court docket 24-1287", DOCK("24-1287")], eo(14257, "2025/04/07/2025-06063/regulating-imports-with-a-reciprocal-tariff-to-rectify-trade-practices-that-contribute-to-large-and", "Reciprocal tariffs"), eo(14389, "2026/02/25/2026-03832/ending-certain-tariff-actions", "Ending Certain Tariff Actions")] },
+ { cat: "now", q: "In Trump v. Slaughter (2026), the Court overruled which 1935 precedent that had protected FTC commissioners from being fired at will?", a: "Humphrey's Executor v. United States", acc: ["humphreys executor", "humphreys executor v united states", "humphrey executor"], kind: "name", opts: ["Myers v. United States", "Morrison v. Olson", "Marbury v. Madison"], tf: "Trump v. Slaughter overruled {X}.",
+   why: "Trump removed FTC Commissioner Rebecca Kelly Slaughter. On July 29, 2026, the Court ruled 6 to 3, with Chief Justice Roberts writing, that the FTC's for-cause removal protection violates the separation of powers, and it overruled Humphrey's Executor.",
+   src: [["Oral argument audio", "Oyez: Trump v. Slaughter", OY("2025/25-332")], ["Court docket", "Supreme Court docket 25-332", DOCK("25-332")]] },
+ { cat: "now", q: "Who cast the tie-breaking vote to confirm Pete Hegseth as Secretary of Defense in January 2025?", a: "JD Vance", acc: ["vance", "jd vance", "j d vance", "vice president vance"], kind: "name", opts: ["John Thune", "Mike Johnson", "Chuck Grassley"], tf: "{X} broke the tie to confirm Pete Hegseth.",
+   why: "The Senate split 50 to 50 on January 24, 2025, and Vice President Vance voted yes. It was the second time a vice president broke a tie on a cabinet nominee, after Mike Pence for Betsy DeVos in 2017.",
+   src: [["Roll-call vote", "Senate vote 15 (119th Congress): Hegseth confirmation", SEN(119, 1, 15)]] },
+ { cat: "now", q: "By what vote was Marco Rubio confirmed as Secretary of State on Inauguration Day 2025?", a: "99-0", acc: ["99 0", "99-0", "99 to 0", "unanimous", "unanimously", "99"], kind: "name", opts: ["52-48", "68-29", "51-49"], tf: "Rubio was confirmed by a vote of {X}.",
+   why: "The Senate confirmed Rubio 99 to 0 on January 20, 2025, the first cabinet member confirmed in Trump's second term.",
+   src: [["Roll-call vote", "Senate vote 8 (119th Congress): Rubio confirmation", SEN(119, 1, 8)]] },
+ { cat: "now", q: "Who was confirmed Secretary of Health and Human Services on February 13, 2025, by 52 to 48?", a: "Robert F. Kennedy Jr.", acc: ["robert f kennedy jr", "robert f kennedy", "rfk jr", "rfk", "robert kennedy", "robert kennedy jr", "kennedy"], kind: "name", opts: ["Mehmet Oz", "Marty Makary", "Jay Bhattacharya"], tf: "{X} was confirmed HHS Secretary in February 2025.",
+   why: "The Senate confirmed Kennedy 52 to 48 on February 13, 2025.",
+   src: [["Roll-call vote", "Senate vote 52 (119th Congress): Kennedy confirmation", SEN(119, 1, 52)]] },
+ { cat: "now", q: "Who was confirmed as FBI director in February 2025?", a: "Kash Patel", acc: ["patel", "kash patel", "kashyap patel"], kind: "name", opts: ["Dan Bongino", "Christopher Wray", "Todd Blanche"], tf: "{X} was confirmed FBI director in February 2025.",
+   why: "The Senate confirmed Kashyap 'Kash' Patel 51 to 49 on February 20, 2025.",
+   src: [["Roll-call vote", "Senate vote 61 (119th Congress): Patel confirmation", SEN(119, 1, 61)]] },
+ { cat: "now", q: "Who cast the tie-breaking Senate vote to pass the One Big Beautiful Bill Act on July 1, 2025?", a: "JD Vance", acc: ["vance", "jd vance", "j d vance", "vice president vance"], kind: "name", opts: ["Mike Johnson", "John Thune", "Lisa Murkowski"], tf: "{X} cast the tie-breaking vote to pass the One Big Beautiful Bill Act.",
+   why: "The Senate split 50 to 50 on passage of H.R. 1 and Vice President Vance voted yes. Trump signed it on July 4, 2025.",
+   src: [["Roll-call vote", "Senate vote 372 (119th Congress): passage of H.R. 1", SEN(119, 1, 372)], law("119publ21", "One Big Beautiful Bill Act")] },
+ { cat: "now", q: "The Rescissions Act of 2025 canceled previously approved funding for which organization that supports public radio and TV?", a: "Corporation for Public Broadcasting", acc: ["corporation for public broadcasting", "cpb", "public broadcasting"], kind: "name", opts: ["National Endowment for the Arts", "Voice of America", "AmeriCorps"], tf: "The Rescissions Act of 2025 canceled funding for the {X}.",
+   why: "Trump signed the act on July 24, 2025. It rescinded previously approved funds, including amounts made available for the Corporation for Public Broadcasting. In the Senate, Vice President Vance broke 50-to-50 ties to move it forward.",
+   src: [law("119publ28", "Rescissions Act of 2025"), ["Roll-call vote", "Senate vote 392 (119th Congress): motion to proceed to H.R. 4", SEN(119, 1, 392)]] },
+ { cat: "now", q: "The GENIUS Act, signed in July 2025, created federal rules for what kind of digital asset?", a: "Stablecoins", acc: ["stablecoins", "stablecoin", "payment stablecoins"], kind: "name", opts: ["Bitcoin mining", "NFTs", "A central bank digital currency"], tf: "The GENIUS Act regulates {X}.",
+   why: "Signed July 18, 2025, the act provides for the regulation of payment stablecoins, digital tokens designed to hold a steady value against the dollar.",
+   src: [law("119publ27", "GENIUS Act"), bill(119, "S", 1582)] },
+ { cat: "now", q: "The TAKE IT DOWN Act (2025) requires platforms to remove nonconsensual intimate images, including AI-generated fakes. What does the law call those fakes?", a: "Digital forgeries", acc: ["digital forgeries", "digital forgery", "deepfakes", "deepfake"], kind: "name", opts: ["Synthetic media", "Cheapfakes", "Altered likenesses"], tf: "The TAKE IT DOWN Act's term for AI-made intimate fakes is {X}.",
+   why: "Signed May 19, 2025, the act defines a 'digital forgery' as an intimate image of an identifiable person created with software or machine learning. The acronym's full name refers to 'Technological Deepfakes'.",
+   src: [law("119publ12", "TAKE IT DOWN Act")] },
+ { cat: "now", q: "The federal government shutdown that began October 1, 2025, lasted how many days?", a: "43", acc: ["43", "forty three", "forty-three"], kind: "number", opts: ["35", "21", "16"], tf: "The 2025 government shutdown lasted {X} days.",
+   why: "Funding under the full-year 2025 continuing resolution ran out at the end of fiscal 2025 on September 30. The shutdown ended when Trump signed a continuing appropriations law on November 12, 2025. At 43 days it was the longest federal shutdown on record, passing the 35-day shutdown of 2018–2019.",
+   src: [law("119publ4", "Full-Year Continuing Appropriations and Extensions Act, 2025"), law("119publ37", "Continuing Appropriations ... and Extensions Act, 2026 (signed Nov. 12, 2025)"), ["Transcript", "Trump's remarks on signing the funding law, Nov. 12, 2025", APP("remarks-signing-the-continuing-appropriations-agriculture-legislative-branch-military")]] },
+ { cat: "now", q: "The Epstein Files Transparency Act (November 2025) gave the attorney general how many days to make the records public?", a: "30", acc: ["30", "thirty"], kind: "number", opts: ["10", "60", "90"], tf: "The Epstein Files Transparency Act set a deadline of {X} days.",
+   why: "Signed November 19, 2025, the act requires the attorney general to make records relating to Jeffrey Epstein publicly available in a searchable format within 30 days of enactment.",
+   src: [law("119publ38", "Epstein Files Transparency Act")] },
+ { cat: "now", q: "On January 20, 2025, Trump issued pardons and commutations for people convicted over events at the U.S. Capitol on what date?", a: "January 6, 2021", acc: ["january 6 2021", "january 6", "jan 6", "jan 6 2021", "6 january 2021"], kind: "name", opts: ["November 3, 2020", "December 14, 2020", "January 20, 2021"], tf: "The pardons covered offenses related to the Capitol on {X}.",
+   why: "Proclamation 10887, signed January 20, 2025, granted pardons and commuted sentences for offenses relating to events at or near the U.S. Capitol on January 6, 2021.",
+   src: [["Executive order", "Federal Register: Proclamation 10887, Jan. 20, 2025", FR("2025/01/29/2025-01950/granting-pardons-and-commutation-of-sentences-for-certain-offenses-relating-to-the-events-at-or-near")]] },
+ { cat: "now", q: "Who was confirmed as chairman of the Federal Reserve in May 2026?", a: "Kevin Warsh", acc: ["warsh", "kevin warsh"], kind: "name", opts: ["Jerome Powell", "Kevin Hassett", "Christopher Waller"], tf: "{X} was confirmed Fed chairman in May 2026.",
+   why: "The Senate confirmed Warsh as chairman of the Federal Reserve Board of Governors 54 to 45 on May 13, 2026.",
+   src: [["Roll-call vote", "Senate vote 120 (119th Congress, 2nd session): Warsh confirmation", SEN(119, 2, 120)]] },
+ { cat: "now", q: "Who was confirmed as attorney general in August 2026?", a: "Todd Blanche", acc: ["blanche", "todd blanche"], kind: "name", opts: ["Pam Bondi", "Kash Patel", "Emil Bove"], tf: "{X} was confirmed attorney general in August 2026.",
+   why: "Pam Bondi was confirmed attorney general 54 to 46 on February 4, 2025. Todd Blanche, confirmed deputy attorney general in March 2025, was confirmed attorney general 50 to 49 on August 8, 2026.",
+   src: [["Roll-call vote", "Senate vote 33 (119th Congress): Bondi confirmation", SEN(119, 1, 33)], ["Roll-call vote", "Senate vote 230 (119th Congress, 2nd session): Blanche confirmation", SEN(119, 2, 230)]] },
+ { cat: "now", q: "Who was confirmed as Secretary of Homeland Security in March 2026, succeeding Kristi Noem?", a: "Markwayne Mullin", acc: ["mullin", "markwayne mullin"], kind: "name", opts: ["Tom Homan", "Corey Lewandowski", "Troy Edgar"], tf: "{X} succeeded Kristi Noem as Homeland Security Secretary.",
+   why: "Noem was confirmed 59 to 34 on January 25, 2025. Mullin, a senator from Oklahoma, was confirmed 54 to 45 on March 23, 2026.",
+   src: [["Roll-call vote", "Senate vote 17 (119th Congress): Noem confirmation", SEN(119, 1, 17)], ["Roll-call vote", "Senate vote 63 (119th Congress, 2nd session): Mullin confirmation", SEN(119, 2, 63)]] },
+ { cat: "now", q: "Who was confirmed as Director of National Intelligence in July 2026, succeeding Tulsi Gabbard?", a: "Walter Clayton", acc: ["clayton", "walter clayton", "jay clayton"], kind: "name", opts: ["John Ratcliffe", "Aaron Lukas", "Kash Patel"], tf: "{X} succeeded Tulsi Gabbard as Director of National Intelligence.",
+   why: "Gabbard was confirmed 52 to 48 on February 12, 2025. Walter 'Jay' Clayton was confirmed 51 to 47 on July 28, 2026.",
+   src: [["Roll-call vote", "Senate vote 50 (119th Congress): Gabbard confirmation", SEN(119, 1, 50)], ["Roll-call vote", "Senate vote 211 (119th Congress, 2nd session): Clayton confirmation", SEN(119, 2, 211)]] },
+ { cat: "now", q: "Who was confirmed as Secretary of Labor in September 2026?", a: "Keith Sonderling", acc: ["sonderling", "keith sonderling"], kind: "name", opts: ["Lori Chavez-DeRemer", "Andrew Puzder", "Julie Su"], tf: "{X} was confirmed Secretary of Labor in September 2026.",
+   why: "Lori Chavez-DeRemer was confirmed Labor Secretary 67 to 32 on March 10, 2025. Keith Sonderling, her deputy since March 2025, was confirmed secretary 47 to 41 on September 30, 2026.",
+   src: [["Roll-call vote", "Senate vote 111 (119th Congress): Chavez-DeRemer confirmation", SEN(119, 1, 111)], ["Roll-call vote", "Senate vote 256 (119th Congress, 2nd session): Sonderling confirmation", SEN(119, 2, 256)]] },
+ { cat: "now", q: "In April 2025, a Senate resolution to end the national emergency behind Trump's global tariffs failed on a tie. What was the vote?", a: "49-49", acc: ["49 49", "49-49", "49 to 49", "49"], kind: "name", opts: ["50-50", "51-49", "48-52"], tf: "The resolution to end the tariff emergency failed {X}.",
+   why: "S.J.Res. 49 failed 49 to 49 on April 30, 2025. A tied vote fails unless the vice president votes to break it.",
+   src: [["Roll-call vote", "Senate vote 225 (119th Congress): S.J.Res. 49", SEN(119, 1, 225)]] },
+ { cat: "now", q: "How did the Supreme Court rule in January 2025 on the law requiring TikTok to be sold or banned?", a: "Upheld it unanimously", acc: ["upheld", "upheld unanimously", "upheld it unanimously", "unanimous", "9 0", "upheld it"], kind: "name", opts: ["Struck it down 5-4", "Upheld it 5-4", "Declined to rule"], tf: "In January 2025 the Supreme Court {X} the TikTok law.",
+   why: "In TikTok v. Garland, decided January 17, 2025, an unsigned opinion with no dissents held the law did not violate the First Amendment. Trump then delayed enforcement by executive order on January 20 and extended the delay several times, then signed EO 14352, 'Saving TikTok While Protecting National Security', on September 25, 2025.",
+   src: [["Oral argument audio", "Oyez: TikTok v. Garland", OY("2024/24-656")], eo(14166, "2025/01/30/2025-02087/application-of-protecting-americans-from-foreign-adversary-controlled-applications-act-to-tiktok", "TikTok enforcement delay"), eo(14352, "2025/09/30/2025-19139/saving-tiktok-while-protecting-national-security", "Saving TikTok While Protecting National Security")] },
+ { cat: "now", q: "In August 2025, Trump declared a crime emergency in which city?", a: "Washington, D.C.", acc: ["washington dc", "dc", "d c", "district of columbia", "washington", "washington d c"], kind: "name", opts: ["Chicago", "Los Angeles", "Baltimore"], tf: "In August 2025, Trump declared a crime emergency in {X}.",
+   why: "EO 14333, signed August 11, 2025, declared a crime emergency in the District of Columbia. Further orders on August 25 addressed cashless bail there.",
+   src: [eo(14333, "2025/08/14/2025-15550/declaring-a-crime-emergency-in-the-district-of-columbia", "Declaring a Crime Emergency in the District of Columbia")] },
+ { cat: "now", q: "A December 2025 executive order designated which drug as a weapon of mass destruction?", a: "Fentanyl", acc: ["fentanyl"], kind: "name", opts: ["Methamphetamine", "Heroin", "Xylazine"], tf: "A December 2025 order designated {X} a weapon of mass destruction.",
+   why: "EO 14367, signed December 15, 2025, is titled 'Designating Fentanyl as a Weapon of Mass Destruction'.",
+   src: [eo(14367, "2025/12/18/2025-23417/designating-fentanyl-as-a-weapon-of-mass-destruction", "Designating Fentanyl as a Weapon of Mass Destruction")] },
+ { cat: "now", q: "A Russia and Iran sanctions law signed in September 2026 is named after which senator?", a: "Lindsey Graham", acc: ["graham", "lindsey graham", "lindsey o graham"], kind: "name", opts: ["Tom Cotton", "Jim Risch", "Marco Rubio"], tf: "The 2026 Russia and Iran sanctions law is named after Senator {X}.",
+   why: "The Lindsey O. Graham Sanctioning Russia and Iran Act of 2026 became law on September 18, 2026, as Public Law 119-111.",
+   src: [law("119publ111", "Lindsey O. Graham Sanctioning Russia and Iran Act of 2026")] },
+ { cat: "now", q: "The Whole Milk for Healthy Kids Act (January 2026) lets schools in the federal lunch program serve what?", a: "Whole milk", acc: ["whole milk", "whole", "full fat milk"], kind: "name", opts: ["Raw milk", "Chocolate milk only", "Plant-based milk only"], tf: "The 2026 law lets school lunch programs serve {X}.",
+   why: "Signed January 14, 2026, it amends the Richard B. Russell National School Lunch Act to let participating schools serve whole milk.",
+   src: [law("119publ69", "Whole Milk for Healthy Kids Act of 2025")] }
+);
+
+/* ---------- state level ---------- */
+Q.push(
+ { cat: "state", q: "In United States v. Skrmetti (2025), the Supreme Court upheld which state's ban on certain gender-transition treatments for minors?", a: "Tennessee", acc: ["tennessee"], kind: "name", opts: ["Texas", "Florida", "Arkansas"], tf: "Skrmetti upheld a law from {X}.",
+   why: "Decided June 18, 2025, by 6 to 3, with Chief Justice Roberts writing. The Court held that the law does not trigger heightened scrutiny under the Equal Protection Clause and passes rational-basis review.",
+   src: [["Oral argument audio", "Oyez: United States v. Skrmetti", OY("2024/23-477")]] },
+ { cat: "state", q: "Free Speech Coalition v. Paxton (2025) upheld which state's age-verification law for sexually explicit websites?", a: "Texas", acc: ["texas"], kind: "name", opts: ["Utah", "Louisiana", "Virginia"], tf: "Free Speech Coalition v. Paxton upheld a law from {X}.",
+   why: "Decided June 27, 2025, by 6 to 3, with Justice Thomas writing. Texas H.B. 1181 requires sites where more than a third of content is sexual material harmful to minors to verify users are 18 or older.",
+   src: [["Oral argument audio", "Oyez: Free Speech Coalition v. Paxton", OY("2024/23-1122")]] },
+ { cat: "state", q: "Little v. Hecox (2026), decided together with a West Virginia case, upheld which state's law limiting girls' and women's sports teams by biological sex?", a: "Idaho", acc: ["idaho"], kind: "name", opts: ["Montana", "Utah", "Arizona"], tf: "Little v. Hecox upheld a law from {X}.",
+   why: "Decided June 30, 2026, by 6 to 3, with Justice Kavanaugh writing for both cases. The Court held that Title IX and the Equal Protection Clause allow states to limit female sports teams based on biological sex.",
+   src: [["Oral argument audio", "Oyez: Little v. Hecox", OY("2025/24-38")], ["Oral argument audio", "Oyez: West Virginia v. B.P.J.", OY("2025/24-43")], ["Court docket", "Supreme Court docket 24-43", DOCK("24-43")]] },
+ { cat: "state", q: "In Chiles v. Salazar (2026), the Court ruled that which state could not apply its conversion-therapy ban to a counselor using only talk therapy?", a: "Colorado", acc: ["colorado"], kind: "name", opts: ["California", "Oregon", "Illinois"], tf: "Chiles v. Salazar involved a law from {X}.",
+   why: "Decided March 31, 2026, by 8 to 1, with Justice Gorsuch writing. The Court held the ban, as applied to talk therapy, regulated speech based on viewpoint.",
+   src: [["Oral argument audio", "Oyez: Chiles v. Salazar", OY("2025/24-539")]] },
+ { cat: "state", q: "Wolford v. Lopez (2026) struck down a law from which state requiring licensed gun carriers to get a property owner's express permission before entering businesses open to the public?", a: "Hawaii", acc: ["hawaii"], kind: "name", opts: ["New York", "New Jersey", "Maryland"], tf: "Wolford v. Lopez struck down a law from {X}.",
+   why: "Decided June 25, 2026, by 6 to 3, with Justice Alito writing, applying the historical test from New York State Rifle & Pistol Association v. Bruen (2022).",
+   src: [["Oral argument audio", "Oyez: Wolford v. Lopez", OY("2025/24-1046")]] },
+ { cat: "state", q: "Watson v. Republican National Committee (2026) let which state keep counting mail ballots that are cast by Election Day but arrive afterward?", a: "Mississippi", acc: ["mississippi"], kind: "name", opts: ["Nevada", "Illinois", "California"], tf: "Watson v. RNC involved a law from {X}.",
+   why: "Decided June 29, 2026, by 5 to 4, with Justice Barrett writing. The Court held federal election-day laws govern when ballots are cast, not when they must arrive.",
+   src: [["Oral argument audio", "Oyez: Watson v. Republican National Committee", OY("2025/24-1260")]] },
+ { cat: "state", q: "Louisiana v. Callais (2026) ruled that a second majority-Black congressional district in which state was an unconstitutional racial gerrymander?", a: "Louisiana", acc: ["louisiana"], kind: "name", opts: ["Alabama", "Georgia", "North Carolina"], tf: "Callais struck down a congressional map from {X}.",
+   why: "Decided April 29, 2026, by 6 to 3, with Justice Alito writing. The Court held the Voting Rights Act did not require the extra district, so drawing it by race lacked a compelling interest.",
+   src: [["Oral argument audio", "Oyez: Louisiana v. Callais", OY("2025/24-109")], ["Court docket", "Supreme Court docket 24-109", DOCK("24-109")]] },
+ { cat: "state", q: "Mahmoud v. Taylor (2025) required a school district in which state to let parents opt children out of lessons using LGBTQ-inclusive storybooks?", a: "Maryland", acc: ["maryland"], kind: "name", opts: ["Virginia", "California", "Massachusetts"], tf: "Mahmoud v. Taylor involved a school district in {X}.",
+   why: "The case involved Montgomery County Public Schools in Maryland. Decided June 27, 2025, by 6 to 3, with Justice Alito writing.",
+   src: [["Oral argument audio", "Oyez: Mahmoud v. Taylor", OY("2024/24-297")]] },
+ { cat: "state", q: "In 2025 the Supreme Court split 4 to 4 over which state's plan to fund the nation's first religious public charter school, leaving a state-court ban in place?", a: "Oklahoma", acc: ["oklahoma"], kind: "name", opts: ["Texas", "Arizona", "Tennessee"], tf: "The 4-4 religious charter school case came from {X}.",
+   why: "On May 22, 2025, an equally divided Court affirmed the Oklahoma Supreme Court's ruling against the state contract with St. Isidore of Seville Catholic Virtual School.",
+   src: [["Oral argument audio", "Oyez: Oklahoma Statewide Charter School Board v. Drummond", OY("2024/24-394")]] },
+ { cat: "state", q: "Moore v. Harper (2023) rejected the 'independent state legislature' theory in a case from which state?", a: "North Carolina", acc: ["north carolina", "nc"], kind: "name", opts: ["Pennsylvania", "Wisconsin", "Georgia"], tf: "Moore v. Harper came from {X}.",
+   why: "Decided June 27, 2023, by 6 to 3, with Chief Justice Roberts writing. The Court held the Constitution's Elections Clause does not give state legislatures power over federal elections free from state courts.",
+   src: [["Oral argument audio", "Oyez: Moore v. Harper", OY("2022/21-1271")]] },
+ { cat: "state", q: "Of the four provisions of Arizona's 2010 immigration law (S.B. 1070) reviewed in 2012, how many did the Supreme Court block as preempted by federal law?", a: "3", acc: ["3", "three"], kind: "number", opts: ["1", "2", "4"], tf: "The Court blocked {X} of the four S.B. 1070 provisions.",
+   why: "In Arizona v. United States, decided June 25, 2012, by 5 to 3, Justice Kennedy wrote that three provisions were preempted. The fourth, requiring officers to check immigration status during stops, was allowed to take effect.",
+   src: [["Oral argument audio", "Oyez: Arizona v. United States", OY("2011/11-182")]] },
+ { cat: "state", q: "New York State Rifle & Pistol Association v. Bruen (2022) struck down which state's requirement to show 'proper cause' to carry a handgun in public?", a: "New York", acc: ["new york", "ny"], kind: "name", opts: ["California", "New Jersey", "Massachusetts"], tf: "Bruen struck down a requirement from {X}.",
+   why: "Decided June 23, 2022. The Court held that the Second Amendment protects carrying a handgun in public for self-defense and that gun laws must fit the nation's historical tradition.",
+   src: [["Oral argument audio", "Oyez: NYSRPA v. Bruen", OY("2021/20-843")]] },
+ { cat: "state", q: "Hollingsworth v. Perry (2013) concerned which California ballot measure banning same-sex marriage?", a: "Proposition 8", acc: ["proposition 8", "prop 8", "8"], kind: "name", opts: ["Proposition 13", "Proposition 22", "Proposition 187"], tf: "Hollingsworth v. Perry concerned California's {X}.",
+   why: "Decided June 26, 2013, by 5 to 4. Chief Justice Roberts wrote that the measure's defenders lacked standing to appeal, which left in place a lower-court ruling striking it down.",
+   src: [["Oral argument audio", "Oyez: Hollingsworth v. Perry", OY("2012/12-144")]] },
+ { cat: "state", q: "Trump v. Anderson (2024) reversed which state supreme court's decision removing Trump from the presidential primary ballot?", a: "Colorado", acc: ["colorado"], kind: "name", opts: ["Maine", "Illinois", "Michigan"], tf: "Trump v. Anderson reversed a ruling from {X}.",
+   why: "Decided March 4, 2024, in an unsigned opinion. The Court held that states may not enforce the 14th Amendment's insurrection clause (Section 3) against federal officeholders and candidates.",
+   src: [["Oral argument audio", "Oyez: Trump v. Anderson", OY("2023/23-719")]] },
+ { cat: "state", q: "Allen v. Milligan (2023) found that which state's congressional map likely violated Section 2 of the Voting Rights Act?", a: "Alabama", acc: ["alabama"], kind: "name", opts: ["Louisiana", "Mississippi", "Georgia"], tf: "Allen v. Milligan involved a map from {X}.",
+   why: "Decided June 8, 2023, with Chief Justice Roberts writing. The Court applied the Thornburg v. Gingles framework and affirmed the lower court's ruling.",
+   src: [["Oral argument audio", "Oyez: Allen v. Milligan", OY("2022/21-1086")]] },
+ { cat: "state", q: "Whole Woman's Health v. Jackson (2021) involved which state's abortion law, S.B. 8, enforced through private lawsuits?", a: "Texas", acc: ["texas"], kind: "name", opts: ["Oklahoma", "Mississippi", "Louisiana"], tf: "S.B. 8 was a law from {X}.",
+   why: "Decided December 10, 2021. The Court let the challenge proceed only against state medical licensing officials, not state judges or clerks, because the law relied on private suits rather than state enforcement.",
+   src: [["Oral argument audio", "Oyez: Whole Woman's Health v. Jackson", OY("2021/21-463")]] },
+ { cat: "state", q: "Schuette v. Coalition to Defend Affirmative Action (2014) upheld a voter-approved ban on race preferences in college admissions in which state?", a: "Michigan", acc: ["michigan"], kind: "name", opts: ["California", "Washington", "Ohio"], tf: "Schuette upheld a ballot measure from {X}.",
+   why: "Decided April 22, 2014. Justice Kennedy's plurality opinion held that the case was about whether voters may choose to ban race preferences, not about whether affirmative action itself is constitutional.",
+   src: [["Oral argument audio", "Oyez: Schuette v. BAMN", OY("2013/12-682")]] },
+ { cat: "state", q: "Bost v. Illinois State Board of Elections (2026) let a candidate challenge which state's rule counting mail ballots that arrive up to two weeks after Election Day?", a: "Illinois", acc: ["illinois"], kind: "name", opts: ["Pennsylvania", "Nevada", "Washington"], tf: "Bost challenged a ballot rule from {X}.",
+   why: "Decided January 14, 2026, with Chief Justice Roberts writing. The Court held that a candidate has standing to challenge the rules for counting votes in his own election.",
+   src: [["Oral argument audio", "Oyez: Bost v. Illinois State Board of Elections", OY("2025/24-568")]] },
+ { cat: "state", q: "Which state's voters approved the Death with Dignity Act (Measure 16) in 1994, allowing terminally ill adults to obtain life-ending medication?", a: "Oregon", acc: ["oregon"], kind: "name", opts: ["Washington", "Vermont", "California"], tf: "Voters in {X} approved the Death with Dignity Act in 1994.",
+   why: "Oregon voters adopted Measure 16 on November 8, 1994. Court challenges delayed it until 1997. The state health authority publishes an annual report on its use.",
+   src: [["Government page", "Oregon Health Authority: Death with Dignity Act administrative rules", "https://www.oregon.gov/oha/ph/providerpartnerresources/evaluationresearch/deathwithdignityact/pages/oars.aspx"]] },
+ { cat: "state", q: "Which state became the first to adopt ranked-choice voting for statewide elections, through a 2016 ballot question?", a: "Maine", acc: ["maine"], kind: "name", opts: ["Alaska", "Vermont", "New York"], tf: "{X} was the first state to adopt statewide ranked-choice voting.",
+   why: "Maine voters approved Question 5 on November 8, 2016. It was first used statewide in the June 2018 primary. Maine's highest court later ruled that the state constitution requires plurality voting in some general elections.",
+   src: [["Government page", "Maine State Law Library: Ranked-Choice Voting in Maine", "https://www.legislature.maine.gov/lawlibrary/ranked-choice-voting-in-maine/9509"]] },
+ { cat: "state", q: "Which governor signed Michigan's 2023 repeal of its 'right to work' law?", a: "Gretchen Whitmer", acc: ["whitmer", "gretchen whitmer"], kind: "name", opts: ["Rick Snyder", "Jennifer Granholm", "Jocelyn Benson"], tf: "Governor {X} signed Michigan's right-to-work repeal.",
+   why: "Whitmer signed the package on March 24, 2023. It repealed the right-to-work laws enacted in 2012 (Public Acts 348 and 349) under Gov. Rick Snyder.",
+   src: [["Government page", "Office of Gov. Whitmer: signing of the 'Restoring Workers' Rights' package", "https://www.michigan.gov/whitmer/news/press-releases/2023/03/24/whitmer-signs-restoring-workers-rights-bill-package-into-law"], ["Congressional record", "Michigan Senate Fiscal Agency analysis of SB 34 as enacted", "https://legislature.mi.gov/documents/2023-2024/billanalysis/Senate/htm/2023-SFA-0034-N.htm"]] },
+ { cat: "state", q: "California's Proposition 13 (1978) capped the combined property tax rate at what percent of a property's assessed value?", a: "1", acc: ["1", "1 percent", "one", "one percent", "1%"], kind: "number", opts: ["2", "3", "0.5"], tf: "Proposition 13 capped the property tax rate at {X} percent.",
+   why: "Voters approved it in June 1978. It set a 1 percent cap and tied a property's taxable value to its purchase price, with yearly increases limited to 2 percent or inflation, whichever is lower.",
+   src: [["Government page", "California Legislative Analyst's Office: Common Claims About Proposition 13", "https://lao.ca.gov/publications/report/3497"]] },
+ { cat: "state", q: "Washington voters legalized recreational marijuana with Initiative 502 in what year?", a: "2012", kind: "year", opts: ["2008", "2014", "2016"], tf: "Washington legalized recreational marijuana in {X}.",
+   why: "I-502 passed on November 6, 2012, with 1,724,209 yes votes (55.7%) to 1,371,235 no.",
+   src: [["Election record", "Washington Secretary of State: official results for Initiative 502", "https://results.vote.wa.gov/results/20121106/initiative-measure-no-502-concerns-marijuana.html"]] }
+);
+
+/* ---------- more history for the main mode (National Archives milestone documents) ---------- */
+const MS = (s, label) => ["Archive record", `National Archives: ${label}`, NARA(s)];
+Q.push(
+ { cat: "law", q: "In what year did Franklin Roosevelt sign the G.I. Bill, which paid for World War II veterans' college and home loans?", a: "1944", kind: "year", opts: ["1945", "1946", "1941"], tf: "The G.I. Bill was signed in {X}.", why: "FDR signed the Servicemen's Readjustment Act on June 22, 1944, while the war was still being fought.", src: [MS("servicemens-readjustment-act", "Servicemen's Readjustment Act (1944)")] },
+ { cat: "law", q: "The law creating the Interstate Highway System was passed in what year?", a: "1956", kind: "year", opts: ["1948", "1953", "1962"], tf: "The Interstate Highway System was authorized in {X}.", why: "The Federal-Aid Highway Act of 1956, known as the National Interstate and Defense Highways Act, authorized what the Archives calls the biggest public works project in the nation's history.", src: [MS("national-interstate-and-defense-highways-act", "National Interstate and Defense Highways Act (1956)")] },
+ { cat: "people", q: "The Marshall Plan for rebuilding postwar Europe was named after which Secretary of State?", a: "George Marshall", acc: ["marshall", "george marshall", "george c marshall"], kind: "name", opts: ["Dean Acheson", "John Foster Dulles", "Cordell Hull"], tf: "The Marshall Plan was named for Secretary of State {X}.", why: "Marshall proposed the aid in 1947. Truman signed the Economic Recovery Act of 1948 on April 3, 1948.", src: [MS("marshall-plan", "Marshall Plan (1948)")] },
+ { cat: "law", q: "The 1935 Wagner Act, protecting private-sector workers' right to unionize, created which federal board?", a: "National Labor Relations Board", acc: ["national labor relations board", "nlrb", "labor relations board"], kind: "name", opts: ["National War Labor Board", "Equal Employment Opportunity Commission", "Federal Mediation Board"], tf: "The Wagner Act created the {X}.", why: "FDR signed the National Labor Relations Act on July 5, 1935.", src: [MS("national-labor-relations-act", "National Labor Relations Act (1935)")] },
+ { cat: "people", q: "The 1883 Pendleton Act, creating a merit-based civil service, followed the assassination of which president by a disappointed job seeker?", a: "James Garfield", acc: ["garfield", "james garfield", "james a garfield"], kind: "name", opts: ["Abraham Lincoln", "William McKinley", "Chester Arthur"], tf: "The Pendleton Act followed the assassination of {X}.", why: "Garfield was shot in 1881. His successor, Chester Arthur, signed the act on January 16, 1883.", src: [MS("pendleton-act", "Pendleton Act (1883)")] },
+ { cat: "law", q: "The Sherman Anti-Trust Act, the first federal law against monopolies, was approved in what year?", a: "1890", kind: "year", opts: ["1880", "1901", "1914"], tf: "The Sherman Anti-Trust Act was approved in {X}.", why: "It was approved July 2, 1890, and named for Senator John Sherman of Ohio.", src: [MS("sherman-anti-trust-act", "Sherman Anti-Trust Act (1890)")] },
+ { cat: "law", q: "Which constitutional amendment, ratified in 1913, gave Congress the power to levy a federal income tax?", a: "16th Amendment", acc: ["16th amendment", "sixteenth amendment", "16th", "16", "sixteenth"], kind: "name", opts: ["14th Amendment", "17th Amendment", "18th Amendment"], tf: "The {X} allowed a federal income tax.", why: "Congress passed it on July 2, 1909, and it was ratified on February 3, 1913.", src: [MS("16th-amendment", "16th Amendment (1913)")] },
+ { cat: "law", q: "Before the 17th Amendment (1913), who chose U.S. senators?", a: "State legislatures", acc: ["state legislatures", "state legislature", "the state legislatures", "legislatures"], kind: "name", opts: ["Voters directly", "Governors", "The House of Representatives"], tf: "Before 1913, U.S. senators were chosen by {X}.", why: "The 17th Amendment, ratified April 8, 1913, changed Article I so voters elect senators directly.", src: [MS("17th-amendment", "17th Amendment (1913)")] },
+ { cat: "law", q: "The Lend-Lease Act, letting the U.S. supply war materiel to Allied nations before entering World War II, passed in what year?", a: "1941", kind: "year", opts: ["1939", "1940", "1942"], tf: "Lend-Lease passed in {X}.", why: "It passed on March 11, 1941, nine months before Pearl Harbor.", src: [MS("lend-lease-act", "Lend-Lease Act (1941)")] },
+ { cat: "people", q: "The 1947 Truman Doctrine asked Congress for aid to which two countries?", a: "Greece and Turkey", acc: ["greece and turkey", "turkey and greece"], kind: "name", opts: ["Germany and Austria", "Korea and Japan", "Italy and France"], tf: "The Truman Doctrine sought aid for {X}.", why: "On March 12, 1947, Truman asked Congress for $400 million for Greece and Turkey after Britain said it could no longer support them.", src: [MS("truman-doctrine", "Truman Doctrine (1947)")] },
+ { cat: "people", q: "The Senate voted to censure Senator Joseph McCarthy in what year?", a: "1954", kind: "year", opts: ["1950", "1952", "1956"], tf: "The Senate censured Joseph McCarthy in {X}.", why: "The Senate voted to censure him on December 2, 1954, calling his conduct 'contrary to senatorial traditions'.", src: [MS("censure-of-senator-joseph-mccarthy", "Censure of Senator Joseph McCarthy (1954)")] },
+ { cat: "law", q: "Which president created the Peace Corps by executive order in 1961?", a: "John F. Kennedy", acc: ["kennedy", "john f kennedy", "jfk", "john kennedy"], kind: "name", opts: ["Dwight Eisenhower", "Lyndon Johnson", "Richard Nixon"], tf: "{X} created the Peace Corps by executive order.", why: "Kennedy signed Executive Order 10924 on March 1, 1961. Congress formally authorized the Peace Corps that September.", src: [MS("executive-order-10924", "Executive Order 10924 (1961)")] },
+ { cat: "people", q: "Which president sent federal troops to enforce the integration of Central High School in Little Rock, Arkansas, in 1957?", a: "Dwight Eisenhower", acc: ["eisenhower", "dwight eisenhower", "ike", "dwight d eisenhower"], kind: "name", opts: ["Harry Truman", "John F. Kennedy", "Lyndon Johnson"], tf: "{X} sent troops to Little Rock in 1957.", why: "Eisenhower signed Executive Order 10730 on September 23, 1957.", src: [MS("executive-order-10730", "Executive Order 10730 (1957)")] },
+ { cat: "ended", q: "The Keating-Owen Act, limiting child labor and later ruled unconstitutional, was passed in what year?", a: "1916", kind: "year", opts: ["1908", "1923", "1938"], tf: "The Keating-Owen Child Labor Act passed in {X}.", why: "It banned the interstate sale of goods made by child labor. The Supreme Court later struck it down.", src: [MS("keating-owen-child-labor-act", "Keating-Owen Child Labor Act (1916)")] },
+ { cat: "ended", q: "Which 1933 New Deal law, creating the National Recovery Administration, was declared unconstitutional by the Supreme Court?", a: "National Industrial Recovery Act", acc: ["national industrial recovery act", "nira", "industrial recovery act"], kind: "name", opts: ["Social Security Act", "Tennessee Valley Authority Act", "Glass-Steagall Act"], tf: "The {X} was declared unconstitutional.", why: "It was enacted June 16, 1933. After the Court struck it down, Congress passed the Wagner Act in 1935 to protect union organizing.", src: [MS("national-industrial-recovery-act", "National Industrial Recovery Act (1933)"), MS("national-labor-relations-act", "National Labor Relations Act (1935)")] },
+ { cat: "court", q: "The Dred Scott decision, declaring that enslaved people were not citizens, was issued in what year?", a: "1857", kind: "year", opts: ["1850", "1854", "1861"], tf: "Dred Scott v. Sandford was decided in {X}.", why: "The Court also held that Congress could not ban slavery in federal territories. The 13th and 14th Amendments later undid the ruling.", src: [MS("dred-scott-v-sandford", "Dred Scott v. Sandford (1857)"), MS("14th-amendment", "14th Amendment (1868)")] },
+ { cat: "law", q: "How many acres of public land did the 1862 Homestead Act offer settlers?", a: "160", acc: ["160", "one hundred sixty"], kind: "number", opts: ["40", "80", "640"], tf: "The Homestead Act offered {X} acres.", why: "Passed May 20, 1862, it granted 160 acres for a small filing fee and five years of continuous residence.", src: [MS("homestead-act", "Homestead Act (1862)")] },
+ { cat: "law", q: "The 1862 Morrill Act funded which kind of public colleges through grants of federal land?", a: "Land-grant colleges", acc: ["land grant colleges", "land grant", "land grant universities", "land grant college"], kind: "name", opts: ["Military academies", "Community colleges", "Teachers' colleges"], tf: "The Morrill Act created {X}.", why: "Passed July 2, 1862. The Archives notes that more than 10 million acres granted were taken from tribal lands.", src: [MS("morrill-act", "Morrill Act (1862)")] },
+ { cat: "law", q: "The Interstate Commerce Act of 1887 made which industry the first subject to federal regulation?", a: "Railroads", acc: ["railroads", "railroad", "the railroads", "railways"], kind: "name", opts: ["Banking", "Oil", "Telegraph"], tf: "The Interstate Commerce Act first regulated {X}.", why: "Approved February 4, 1887, it created the Interstate Commerce Commission.", src: [MS("interstate-commerce-act", "Interstate Commerce Act (1887)")] },
+ { cat: "law", q: "The 1963 Limited Test Ban Treaty banned nuclear tests in the atmosphere, in space and under water. Where were tests still allowed?", a: "Underground", acc: ["underground", "under ground", "below ground"], kind: "name", opts: ["Over the ocean", "In the Arctic", "Nowhere"], tf: "The 1963 treaty still allowed nuclear tests {X}.", why: "The U.S., Britain and the Soviet Union signed it August 5, 1963, and it took effect October 10, 1963.", src: [MS("test-ban-treaty", "Test Ban Treaty (1963)")] },
+ { cat: "law", q: "The Tennessee Valley Authority, building dams for flood control and cheap power, was created in what year?", a: "1933", kind: "year", opts: ["1929", "1936", "1941"], tf: "The TVA was created in {X}.", why: "FDR signed the Tennessee Valley Authority Act on May 18, 1933.", src: [MS("tennessee-valley-authority-act", "Tennessee Valley Authority Act (1933)")] },
+ { cat: "law", q: "The 1803 Louisiana Purchase cost the United States how many million dollars?", a: "15", acc: ["15", "15 million", "fifteen", "fifteen million"], kind: "number", opts: ["5", "10", "50"], tf: "The Louisiana Purchase cost ${X} million.", why: "Signed April 30, 1803, it bought 828,000 square miles from France for $15 million, roughly 4 cents an acre, doubling the nation's size.", src: [MS("louisiana-purchase-treaty", "Louisiana Purchase Treaty (1803)")] },
+ { cat: "court", q: "Which chief justice wrote Marbury v. Madison (1803), establishing judicial review?", a: "John Marshall", acc: ["marshall", "john marshall"], kind: "name", opts: ["John Jay", "Roger Taney", "Oliver Ellsworth"], tf: "Chief Justice {X} wrote Marbury v. Madison.", why: "The decision established the courts' power to decide whether actions of the other branches are constitutional.", src: [MS("marbury-v-madison", "Marbury v. Madison (1803)")] },
+ { cat: "law", q: "The 13th Amendment, abolishing slavery, was ratified in what year?", a: "1865", kind: "year", opts: ["1863", "1866", "1868"], tf: "The 13th Amendment was ratified in {X}.", why: "Congress passed it January 31, 1865, and it was ratified December 6, 1865.", src: [MS("13th-amendment", "13th Amendment (1865)")] },
+ { cat: "law", q: "The 14th Amendment, granting citizenship to all persons born in the U.S., was ratified in what year?", a: "1868", kind: "year", opts: ["1865", "1866", "1870"], tf: "The 14th Amendment was ratified in {X}.", why: "Congress passed it June 13, 1866, and it was ratified July 9, 1868. Its Citizenship Clause was central to Trump v. Barbara (2026).", src: [MS("14th-amendment", "14th Amendment (1868)")] },
+ { cat: "law", q: "The 15th Amendment, barring denial of the vote based on race, was ratified in what year?", a: "1870", kind: "year", opts: ["1865", "1868", "1875"], tf: "The 15th Amendment was ratified in {X}.", why: "Congress passed it February 26, 1869, and it was ratified February 3, 1870.", src: [MS("15th-amendment", "15th Amendment (1870)")] },
+ { cat: "ended", q: "The Alien and Sedition Acts of 1798 were passed in anticipation of war with which country?", a: "France", acc: ["france"], kind: "name", opts: ["Britain", "Spain", "the Netherlands"], tf: "The Alien and Sedition Acts anticipated war with {X}.", why: "Passed by the Federalist Congress, the acts tightened rules on foreign-born residents and limited speech critical of the government.", src: [MS("alien-and-sedition-acts", "Alien and Sedition Acts (1798)")] },
+ { cat: "law", q: "Which president issued Executive Order 8802 in 1941, banning racial discrimination in the defense industry?", a: "Franklin D. Roosevelt", acc: ["fdr", "roosevelt", "franklin roosevelt", "franklin d roosevelt"], kind: "name", opts: ["Harry Truman", "Herbert Hoover", "Dwight Eisenhower"], tf: "{X} issued Executive Order 8802.", why: "Issued in June 1941, it also created the Fair Employment Practices Commission.", src: [MS("executive-order-8802", "Executive Order 8802 (1941)")] },
+ { cat: "law", q: "The Dawes Act, breaking up tribal lands into individual allotments, was approved in what year?", a: "1887", kind: "year", opts: ["1862", "1876", "1934"], tf: "The Dawes Act was approved in {X}.", why: "It was approved February 8, 1887, and treated Native Americans as individuals rather than as members of tribes.", src: [MS("dawes-act", "Dawes Act (1887)")] },
+ { cat: "ended", q: "The 1854 Kansas-Nebraska Act repealed which earlier compromise that had barred slavery north of the 36°30′ line?", a: "Missouri Compromise", acc: ["missouri compromise", "the missouri compromise"], kind: "name", opts: ["Compromise of 1850", "Three-Fifths Compromise", "Crittenden Compromise"], tf: "The Kansas-Nebraska Act repealed the {X}.", why: "Introduced by Senator Stephen Douglas of Illinois, it reopened the national struggle over slavery in the western territories.", src: [MS("kansas-nebraska-act", "Kansas-Nebraska Act (1854)")] }
+);
+// Trump second-term items from the original set belong to the current-administration topic.
+for (const q of Q) if (/One Big Beautiful Bill Act was signed on which|withdrawing the U\.S\. from which United Nations health agency|second U\.S\. withdrawal from the Paris|1980 Republican platform called for eliminating/.test(q.q)) q.cat = "now";
+
+/* ---------- helpers ---------- */
+const ROUNDS = 10, CATS = { law: "Laws & orders", ended: "Repealed & ended", court: "Supreme Court", promise: "Promises & claims", people: "People & votes", state: "State level", now: "Current administration" };
+const PTS = { mc: 100, tf: 50, hc: 150 };
+const $ = id => document.getElementById(id);
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const norm = s => String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[’'`]s\b/g, "s").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+const lev = (a, b) => { const m = a.length, n = b.length; if (!m) return n; if (!n) return m; let p = Array.from({ length: n + 1 }, (_, j) => j); for (let i = 1; i <= m; i++) { const c = [i]; for (let j = 1; j <= n; j++) c[j] = Math.min(p[j] + 1, c[j - 1] + 1, p[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); p = c; } return p[n]; };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+const EX = "ABCDEFGHIJ";
+
+const grade = (typed, q) => {
+  const t = norm(typed); if (!t) return 0;
+  if (q.kind === "year") { const y = parseInt(t.match(/\d{4}/)?.[0], 10); if (!y) return 0; const d = Math.abs(y - +q.a); return d === 0 ? 1 : d === 1 ? 0.5 : 0; }
+  const acc = (q.acc || [q.a]).map(norm);
+  if (acc.includes(t)) return 1;
+  if (q.kind === "number") return 0;
+  return acc.some(a => a.length >= 5 && lev(t, a) <= (a.length <= 9 ? 1 : 2)) ? 1 : 0;
+};
+
+/* ---------- state ---------- */
+const cfg = { fmt: "mc", cat: "all" };
+let rounds = [], idx = 0, results = [], phase = "ask", cur = null;
+const pool = () => cfg.cat === "all" ? Q : Q.filter(q => q.cat === cfg.cat);
+
+const newGame = () => {
+  const p = pool();
+  $("count").textContent = `${p.length} questions in this topic. Each round draws ${Math.min(ROUNDS, p.length)}.`;
+  rounds = shuffle(p).slice(0, ROUNDS); idx = 0; results = [];
+  $("summary").hidden = true; $("case").hidden = false;
+  startRound();
+};
+const startRound = () => {
+  const q = rounds[idx]; phase = "ask"; cur = { q };
+  if (cfg.fmt === "mc") cur.options = shuffle([q.a, ...q.opts]);
+  if (cfg.fmt === "tf") { cur.truth = Math.random() < 0.5; cur.shown = cur.truth ? q.a : shuffle(q.opts)[0]; }
+  $("ruling").hidden = true;
+  render(); tally(); pips();
+  const f = $("case").querySelector(".opt, input"); if (f) f.focus({ preventScroll: true });
+};
+
+const tally = () => { $("t-round").textContent = `Question ${Math.min(idx + 1, rounds.length)} / ${rounds.length}`; $("t-score").textContent = results.reduce((s, r) => s + r.pts, 0); };
+const pips = () => { $("pips").style.gridTemplateColumns = `repeat(${rounds.length}, 1fr)`; $("pips").innerHTML = rounds.map((_, i) => { const r = results[i]; return `<div class="pip ${r ? (r.pts === r.max ? "ok" : r.pts ? "part" : "no") : i === idx && phase !== "done" ? "now" : ""}"></div>`; }).join(""); };
+
+const render = () => {
+  const q = cur.q;
+  let h = `<div class="docket"><span>No. ${String(idx + 1).padStart(2, "0")} · ${esc(CATS[q.cat])}</span><span>${cfg.fmt === "mc" ? "Multiple choice" : cfg.fmt === "tf" ? "True or false" : "Hardcore"}</span></div>`;
+  if (cfg.fmt === "tf") {
+    h += `<p class="hint">True or false?</p><p class="stmt">${esc(q.tf.replace("{X}", cur.shown))}</p><div class="opts tf"><button class="opt" type="button" data-v="1">True</button><button class="opt" type="button" data-v="0">False</button></div>`;
+  } else {
+    h += `<p class="q">${esc(q.q)}</p>`;
+    if (cfg.fmt === "mc") h += `<div class="opts">${cur.options.map((o, i) => `<button class="opt" type="button" data-i="${i}"><span class="k">${"ABCD"[i]}</span><span>${esc(o)}</span></button>`).join("")}</div>`;
+    else h += `<div class="typed"><input id="ans" type="text" autocomplete="off" spellcheck="false" inputmode="${q.kind === "name" ? "text" : "numeric"}" placeholder="${q.kind === "year" ? "Type the year" : q.kind === "number" ? "Type the number" : "Type your answer"}" aria-label="Your answer"><button class="btn" id="submit" type="button">Submit</button></div>
+      <p class="hint">${q.kind === "year" ? "Exact year: full points. One year off: half points." : "Spelling slips are accepted, and last names alone work for people."}</p>`;
+  }
+  $("case").innerHTML = h;
+  $("case").querySelectorAll(".opt").forEach(b => b.onclick = () => answer(b));
+  const s = $("submit"); if (s) s.onclick = () => answer(null);
+  const i = $("ans"); if (i) i.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); answer(null); } });
+};
+
+const answer = btn => {
+  if (phase !== "ask") return;
+  const q = cur.q, max = PTS[cfg.fmt]; let score = 0;
+  if (cfg.fmt === "mc") {
+    const pick = cur.options[+btn.dataset.i]; score = pick === q.a ? 1 : 0;
+    $("case").querySelectorAll(".opt").forEach((b, j) => { b.disabled = true; b.classList.add(cur.options[j] === q.a ? "right" : b === btn ? "wrong" : "dim"); });
+  } else if (cfg.fmt === "tf") {
+    const said = btn.dataset.v === "1"; score = said === cur.truth ? 1 : 0;
+    $("case").querySelectorAll(".opt").forEach(b => { b.disabled = true; const v = b.dataset.v === "1"; b.classList.add(v === cur.truth ? "right" : b === btn ? "wrong" : "dim"); });
+  } else {
+    const inp = $("ans"); if (!inp.value.trim()) { inp.focus(); return; }
+    score = grade(inp.value, q); inp.readOnly = true; inp.classList.add(score ? "right" : "wrong"); $("submit").disabled = true;
+  }
+  const pts = Math.round(max * score);
+  results.push({ q, pts, max }); phase = "reveal";
+  ruling(score, pts, max);
+};
+
+const ruling = (score, pts, max) => {
+  const q = cur.q;
+  const verdict = score === 1 ? ["Correct", "ok"] : score > 0 ? ["Close", "part"] : ["Incorrect", "no"];
+  const tfLine = cfg.fmt === "tf" ? `<p>The statement was <strong>${cur.truth ? "true" : "false"}</strong>.${cur.truth ? "" : ` The correct answer is ${esc(q.a)}.`}</p>` : "";
+  $("ruling").innerHTML = `
+    <div class="stamps"><span class="stamp ${verdict[1]}">${verdict[0]}</span>${q.status ? `<span class="stamp status ${q.status[1]}">${esc(q.status[0])}</span>` : ""}<span class="pts">+${pts} / ${max}</span></div>
+    <div class="answer">${esc(q.a)}<small>${esc(CATS[q.cat])}</small></div>
+    ${tfLine}
+    <h3>What the record shows</h3>
+    <p>${esc(q.why)}</p>
+    <h3>Evidence</h3>
+    <ol class="exhibits">${q.src.map(([k, label, url], i) => `<li><span class="ex">Exhibit ${EX[i]}</span><span class="body"><span class="kind">${esc(k)}</span><a href="${esc(url)}" target="_blank" rel="noopener">${esc(label)} ↗</a></span></li>`).join("")}</ol>
+    <div class="actions"><button class="btn" id="next" type="button">${idx + 1 < rounds.length ? "Next question" : "See results"}</button></div>`;
+  $("ruling").hidden = false;
+  $("next").onclick = next; $("next").focus({ preventScroll: true });
+  $("ruling").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest" });
+  tally(); pips();
+};
+
+const next = () => { if (phase !== "reveal") return; idx++; if (idx < rounds.length) startRound(); else finish(); };
+const finish = () => {
+  phase = "done";
+  const total = results.reduce((s, r) => s + r.pts, 0), max = results.reduce((s, r) => s + r.max, 0);
+  const key = `otr-best-${cfg.fmt}-${cfg.cat}`, best = Math.max(total, +(store.get(key) || 0)); store.set(key, String(best));
+  const pct = max ? total / max : 0;
+  const rank = pct >= .9 ? "Parliamentarian. You know the record cold." : pct >= .7 ? "Committee counsel. Sharp on the details." : pct >= .5 ? "Legislative aide. A solid working knowledge." : pct >= .3 ? "Engaged citizen. Keep reading the record." : "Freshman member. Every expert starts somewhere.";
+  $("case").hidden = true; $("ruling").hidden = true;
+  $("summary").innerHTML = `<div class="docket"><span>Session adjourned</span><span>${esc(cfg.cat === "all" ? "Everything" : CATS[cfg.cat])}</span></div>
+    <div class="score">${total}<small>/ ${max}${best > total ? ` · best ${best}` : " · your best yet"}</small></div>
+    <p class="q"><em>${rank}</em></p>
+    <table class="log"><tbody>${results.map(r => `<tr><td>${esc(r.q.a)} <span class="hint">· ${esc(CATS[r.q.cat])}</span></td><td class="n">${r.pts} / ${r.max}</td></tr>`).join("")}</tbody></table>
+    <div class="actions"><button class="btn" id="again" type="button">New session</button></div>`;
+  $("summary").hidden = false; $("again").onclick = newGame; $("again").focus({ preventScroll: true });
+  pips();
+};
+
+for (const k of ["fmt", "cat"]) document.querySelectorAll(`input[name="${k}"]`).forEach(r => r.addEventListener("change", () => { cfg[k] = r.value; newGame(); }));
+newGame();
+})();
+</script>
+
+</body></html>
