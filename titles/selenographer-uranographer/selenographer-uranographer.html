@@ -1,0 +1,1326 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta charset="utf-8">
+<title>Selenographer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Hanken+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: full-bleed night-sky stage; prompt card top-left, field notes slide in right (bottom sheet on phones). */
+:root {
+  --void: #0a0c13;
+  --panel: #121521;
+  --line: #262b3c;
+  --ink: #ebe6da;
+  --muted: #9599a8;
+  --answer: #e6b968;
+  --guess: #86cdf5;
+  --display: "IM Fell English", "Iowan Old Style", Georgia, serif;
+  --body: "Hanken Grotesk", system-ui, -apple-system, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { background: var(--void); color: var(--ink); font-family: var(--body); font-size: 15px; overflow: hidden; }
+#stage { position: fixed; inset: 0; }
+#stage canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+#stage canvas.dragging { cursor: grabbing; }
+#stage canvas.aim { cursor: crosshair; }
+#labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+.lbl { position: absolute; left: 0; top: 0; white-space: nowrap; font-family: var(--mono); font-size: 11px; color: var(--answer); text-shadow: 0 0 4px var(--void), 0 0 2px var(--void); }
+.lbl.big { font-family: var(--display); font-style: italic; font-size: 20px; letter-spacing: .02em; }
+
+.hud { position: fixed; left: 0; right: 0; top: 0; padding: calc(env(safe-area-inset-top, 0px) + 12px) 18px 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; pointer-events: none; }
+.hud-left { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.brand { font-family: var(--display); font-size: 22px; letter-spacing: .01em; }
+.modes { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; pointer-events: auto; }
+.modes button { border: 0; border-radius: 0; padding: 6px 12px; font-size: 13px; background: transparent; color: var(--muted); }
+.modes button[aria-pressed="true"] { background: var(--ink); color: var(--void); }
+.tally { font-family: var(--mono); font-size: 13px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.tally b { color: var(--ink); font-weight: 500; font-size: 17px; }
+
+#prompt { position: fixed; left: 18px; top: calc(env(safe-area-inset-top, 0px) + 62px); max-width: 340px; padding: 16px 18px 15px; background: color-mix(in srgb, var(--panel) 86%, transparent); border: 1px solid var(--line); border-radius: 6px; backdrop-filter: blur(6px); display: grid; gap: 6px; }
+.eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+#prompt h1 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 38px; line-height: 1.02; text-wrap: balance; }
+#p-alt { font-family: var(--display); font-style: italic; color: var(--muted); font-size: 17px; }
+#p-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.chip { font-family: var(--mono); font-size: 11px; padding: 3px 7px; border: 1px solid var(--line); border-radius: 3px; color: var(--muted); }
+.chip.far { color: var(--answer); border-color: color-mix(in srgb, var(--answer) 45%, transparent); }
+#p-help { font-size: 13px; color: var(--muted); line-height: 1.45; margin-top: 4px; }
+
+#controls { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + 18px); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; width: max-content; max-width: calc(100% - 32px); }
+button { font: 500 14px var(--body); color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 10px 14px; cursor: pointer; }
+button:hover { border-color: var(--muted); }
+button:focus-visible { outline: 2px solid var(--guess); outline-offset: 2px; }
+button.tog[aria-pressed="true"] { color: var(--guess); border-color: color-mix(in srgb, var(--guess) 50%, transparent); }
+button.primary { background: var(--answer); color: #1b1407; border-color: var(--answer); font-weight: 600; padding-inline: 20px; }
+button.primary:disabled { background: var(--panel); color: var(--muted); border-color: var(--line); cursor: not-allowed; }
+
+#readout { position: fixed; right: 18px; bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); font-family: var(--mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; pointer-events: none; text-align: right; }
+#readout span { color: var(--guess); }
+
+#notes { position: fixed; top: 0; right: 0; bottom: 0; width: 420px; max-width: 100%; background: var(--panel); border-left: 1px solid var(--line); padding: calc(env(safe-area-inset-top, 0px) + 22px) 26px calc(env(safe-area-inset-bottom, 0px) + 22px); overflow-y: auto; display: flex; flex-direction: column; gap: 18px; animation: slidein .45s cubic-bezier(.2,.8,.2,1); }
+@keyframes slidein { from { transform: translateX(24px); opacity: .4; } }
+.result { display: grid; gap: 4px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+.result .pts { font-family: var(--display); font-size: 46px; line-height: 1; color: var(--answer); font-variant-numeric: tabular-nums; }
+.result .pts small { font-family: var(--mono); font-size: 13px; color: var(--muted); margin-left: 6px; }
+.result .dist { font-family: var(--mono); font-size: 13px; color: var(--ink); }
+.legend { display: flex; gap: 14px; font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 6px; }
+.legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+#notes h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 34px; line-height: 1.05; text-wrap: balance; }
+#n-alt { font-family: var(--display); font-style: italic; font-size: 18px; color: var(--muted); margin-top: -12px; }
+dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 7px 16px; font-size: 13px; }
+dt { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding-top: 2px; }
+dd { margin: 0; min-width: 0; }
+dd.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.prose { display: grid; gap: 12px; line-height: 1.6; font-size: 15px; max-width: 62ch; }
+.prose p { margin: 0; }
+.src { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 13px; line-height: 1.45; color: var(--muted); }
+.src a { color: inherit; text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
+.src a:hover { color: var(--ink, inherit); }
+.prose h3 { margin: 6px 0 -4px; font-family: var(--mono); font-weight: 400; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.names { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.names li { display: grid; grid-template-columns: 7.5em 1fr; gap: 2px 12px; padding: 8px 0; border-top: 1px solid var(--line); }
+.names li:first-child { border-top: 0; padding-top: 2px; }
+.names .cu { font-family: var(--mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding-top: 4px; }
+.names .nm { font-family: var(--display); font-size: 19px; line-height: 1.2; }
+.names .gl { grid-column: 2; font-size: 13.5px; color: var(--muted); line-height: 1.45; }
+#notes .primary { margin-top: auto; width: 100%; padding-block: 13px; flex-shrink: 0; }
+
+#summary { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; background: color-mix(in srgb, var(--void) 72%, transparent); backdrop-filter: blur(3px); }
+.sheet { width: 100%; max-width: 520px; max-height: calc(100% - 32px); overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 26px; display: grid; gap: 16px; }
+.sheet h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 40px; line-height: 1; }
+.sheet .total { font-family: var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.sheet .total b { color: var(--answer); font-size: 22px; font-weight: 500; }
+.log { width: 100%; border-collapse: collapse; font-size: 14px; }
+.log td { padding: 8px 0; border-top: 1px solid var(--line); }
+.log td.n { font-family: var(--mono); font-size: 12px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; padding-left: 12px; white-space: nowrap; }
+.rank { font-family: var(--display); font-style: italic; font-size: 19px; }
+.sheet .row { display: flex; gap: 8px; flex-wrap: wrap; }
+.sheet .row button { flex: 1 1 160px; }
+
+#loading { position: fixed; inset: 0; display: grid; place-items: center; font-family: var(--display); font-style: italic; font-size: 20px; color: var(--muted); }
+
+body.revealed #prompt { display: none; }
+@media (max-width: 760px) {
+  .brand { font-size: 19px; }
+  #prompt { left: 16px; right: 16px; max-width: none; top: calc(env(safe-area-inset-top, 0px) + 54px); padding: 12px 14px; gap: 4px; }
+  #prompt h1 { font-size: 30px; }
+  #p-help { display: none; }
+  #controls button { padding: 9px 11px; font-size: 13px; }
+  #readout { left: 16px; right: 16px; text-align: center; bottom: calc(env(safe-area-inset-bottom, 0px) + 112px); }
+  #notes { top: auto; left: 0; width: 100%; max-height: 56%; border-left: 0; border-top: 1px solid var(--line); border-radius: 10px 10px 0 0; padding: 18px 16px calc(env(safe-area-inset-bottom, 0px) + 16px); gap: 14px; animation-name: slideup; }
+  @keyframes slideup { from { transform: translateY(30px); opacity: .4; } }
+  .result .pts { font-size: 38px; }
+  #notes h2 { font-size: 28px; }
+  .names li { grid-template-columns: 1fr; }
+  .names .gl { grid-column: 1; }
+}
+@media (prefers-reduced-motion: reduce) { #notes { animation: none; } }
+</style>
+
+<div id="stage"></div>
+<div id="labels"></div>
+
+<div class="hud">
+  <div class="hud-left">
+    <div class="brand" id="brand">Selenographer</div>
+    <div class="modes" aria-label="Game">
+      <button type="button" data-mode="moon" aria-pressed="true">Moon</button>
+      <button type="button" data-mode="sky" aria-pressed="false">Stars</button>
+    </div>
+  </div>
+  <div class="tally"><span id="t-round">Plate 1 / 8</span><br><b id="t-score">0</b> pts</div>
+</div>
+
+<section id="prompt" aria-live="polite">
+  <div class="eyebrow">Locate</div>
+  <h1 id="p-name"></h1>
+  <div id="p-alt" hidden></div>
+  <div id="p-meta"></div>
+  <div id="p-help"></div>
+</section>
+
+<div id="controls">
+  <button id="b-near" type="button" data-for="moon">Face Earth</button>
+  <button id="b-far" type="button" data-for="moon">Far side</button>
+  <button id="b-north" type="button" data-for="sky">North</button>
+  <button id="b-south" type="button" data-for="sky">South</button>
+  <button id="b-fig" type="button" class="tog" data-for="sky" aria-pressed="true">Figures</button>
+  <button id="b-bounds" type="button" class="tog" data-for="sky" aria-pressed="false">Borders</button>
+  <button id="b-grid" type="button" class="tog" aria-pressed="false">Grid</button>
+  <button id="b-lock" type="button" class="primary" disabled>Drop a pin</button>
+</div>
+
+<div id="readout"></div>
+
+<aside id="notes" hidden aria-live="polite">
+  <div class="result">
+    <div class="eyebrow" id="n-verdict">Result</div>
+    <div class="pts"><span id="n-pts">0</span><small>/ 5,000</small></div>
+    <div class="dist" id="n-dist"></div>
+    <div class="legend"><span><i style="background:var(--guess)"></i>your pin</span><span><i style="background:var(--answer)"></i><span id="n-legend">the feature</span></span></div>
+  </div>
+  <div class="eyebrow" id="n-kind"></div>
+  <h2 id="n-name"></h2>
+  <div id="n-alt"></div>
+  <dl id="n-facts"></dl>
+  <div class="prose" id="n-prose"></div>
+  <button id="b-next" type="button" class="primary">Next</button>
+</aside>
+
+<div id="summary" hidden>
+  <div class="sheet">
+    <div class="eyebrow">Survey complete</div>
+    <h2 id="s-title">Your atlas</h2>
+    <div class="total"><b id="s-total">0</b> / 40,000 pts <span id="s-best"></span></div>
+    <div class="rank" id="s-rank"></div>
+    <table class="log"><tbody id="s-log"></tbody></table>
+    <div class="row">
+      <button id="b-again" type="button" class="primary">Play again</button>
+      <button id="b-switch" type="button">Switch game</button>
+    </div>
+  </div>
+</div>
+
+<div id="loading">Developing the plate…</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+const R_KM = 1737.4, D2R = Math.PI / 180, ROUNDS = 8, MAX = 5000;
+
+/* ======================================================================
+   MOON FEATURES — lat/lon in degrees (east positive), size in km.
+   tier: 1 easy, 2 medium, 3 hard.
+   ====================================================================== */
+/* Sources checked Oct 2026: USGS/IAU Gazetteer of Planetary Nomenclature, mission records, peer-reviewed papers. */
+const SOURCES = {"Tycho":[["USGS/IAU Gazetteer: Tycho","https://planetarynames.wr.usgs.gov/Feature/6163"],["LROC: Tycho central peak (about 110 million years old)","https://www.lroc.asu.edu/posts/384"],["LROC: The floor of Tycho (108-million-year exposure age)","https://www.lroc.asu.edu/images/209"],["NASA NSSDCA: Surveyor 7","https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1968-001A"]],"Copernicus":[["USGS/IAU Gazetteer: Copernicus","https://planetarynames.wr.usgs.gov/Feature/1296"],["Wilhelms, The Geologic History of the Moon (USGS Prof. Paper 1348, 1987)","https://pubs.usgs.gov/publication/pp1348"],["The Met: Lunar Orbiter II, \"The Picture of the Century\" (1966)","https://www.metmuseum.org/art/collection/search/764916"]],"Mare Crisium":[["USGS/IAU Gazetteer: Mare Crisium","https://planetarynames.wr.usgs.gov/Feature/3671"],["Muller & Sjogren, Science (1968): Mascons","https://doi.org/10.1126/science.161.3842.680"],["NASA NSSDCA: Soviet lunar missions","https://nssdc.gsfc.nasa.gov/planetary/lunar/lunarussr.html"],["NASA: Blue Ghost lands on the Moon (March 2, 2025)","https://www.nasa.gov/image-article/blue-ghost-lands-on-moon"]],"Mare Tranquillitatis":[["USGS/IAU Gazetteer: Mare Tranquillitatis","https://planetarynames.wr.usgs.gov/Feature/3691"],["NASA NSSDCA: Apollo 11 lunar module","https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1969-059C"],["Carnegie Science: armalcolite and the Apollo 11 samples","https://carnegiescience.edu/news/glove-box-held-moon"],["NASA NSSDCA: Ranger 8","https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1965-010A"],["NASA NSSDCA: Surveyor 5","https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1967-084A"]],"Mare Imbrium":[["USGS/IAU Gazetteer: Mare Imbrium","https://planetarynames.wr.usgs.gov/Feature/3678"],["Wilhelms, The Geologic History of the Moon (USGS Prof. Paper 1348, 1987)","https://pubs.usgs.gov/publication/pp1348"],["NASA NSSDCA: Soviet lunar missions","https://nssdc.gsfc.nasa.gov/planetary/lunar/lunarussr.html"],["Xiao et al., Science (2015): Chang'e-3 radar of northern Mare Imbrium","https://doi.org/10.1126/science.1259866"]],"Oceanus Procellarum":[["USGS/IAU Gazetteer: Oceanus Procellarum","https://planetarynames.wr.usgs.gov/Feature/4395"],["Andrews-Hanna et al., Nature (2014): Procellarum region from GRAIL","https://doi.org/10.1038/nature13697"],["NASA NSSDCA: Soviet lunar missions","https://nssdc.gsfc.nasa.gov/planetary/lunar/lunarussr.html"],["NASA NSSDCA: Apollo 12 lunar module","https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1969-099C"],["Li et al., Nature (2021): Two-billion-year-old Chang'e-5 basalts","https://doi.org/10.1038/s41586-021-04100-2"]],"Mare Serenitatis":[["USGS/IAU Gazetteer: Mare Serenitatis","https://planetarynames.wr.usgs.gov/Feature/3686"],["Muller & Sjogren, Science (1968): Mascons","https://doi.org/10.1126/science.161.3842.680"],["NASA NSSDCA: Apollo 17 lunar module","https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1972-096C"],["NASA NSSDCA: Soviet lunar missions","https://nssdc.gsfc.nasa.gov/planetary/lunar/lunarussr.html"],["NASA JPL: Opportunity sets off-world driving record (2014)","https://www.jpl.nasa.gov/news/nasa-long-lived-mars-opportunity-rover-sets-off-world-driving-record/"]],"Plato":[["USGS/IAU Gazetteer: Plato","https://planetarynames.wr.usgs.gov/Feature/4757"],["Wilhelms, The Geologic History of the Moon (USGS Prof. Paper 1348, 1987)","https://pubs.usgs.gov/publication/pp1348"]],"Aristarchus":[["USGS/IAU Gazetteer: Aristarchus","https://planetarynames.wr.usgs.gov/Feature/380"],["LROC: Aristarchus Plateau and Vallis Schröteri","https://www.lroc.asu.edu/posts/34"],["Lawson et al., JGR (2005): Radon outgassing seen by Lunar Prospector","https://doi.org/10.1029/2005JE002433"]],"Clavius":[["USGS/IAU Gazetteer: Clavius","https://planetarynames.wr.usgs.gov/Feature/1236"],["NASA: SOFIA discovers water on the sunlit Moon (2020)","https://www.nasa.gov/news-release/nasas-sofia-discovers-water-on-sunlit-surface-of-moon/"],["Honniball et al., Nature Astronomy (2021): Molecular water by SOFIA","https://doi.org/10.1038/s41550-020-01222-x"]],"Kepler":[["USGS/IAU Gazetteer: Kepler","https://planetarynames.wr.usgs.gov/Feature/2990"],["Wilhelms, The Geologic History of the Moon (USGS Prof. Paper 1348, 1987)","https://pubs.usgs.gov/publication/pp1348"]],"Grimaldi":[["USGS/IAU Gazetteer: Grimaldi","https://planetarynames.wr.usgs.gov/Feature/2252"],["Wilhelms, The Geologic History of the Moon (USGS Prof. Paper 1348, 1987)","https://pubs.usgs.gov/publication/pp1348"]],"Langrenus":[["USGS/IAU Gazetteer: Langrenus","https://planetarynames.wr.usgs.gov/Feature/3273"],["Wilhelms, The Geologic History of the Moon (USGS Prof. Paper 1348, 1987)","https://pubs.usgs.gov/publication/pp1348"]],"Ptolemaeus":[["USGS/IAU Gazetteer: Ptolemaeus","https://planetarynames.wr.usgs.gov/Feature/4860"],["Wilhelms, The Geologic History of the Moon (USGS Prof. Paper 1348, 1987)","https://pubs.usgs.gov/publication/pp1348"],["NASA NSSDCA: Ranger 9","https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1965-023A"]],"Archimedes":[["USGS/IAU Gazetteer: Archimedes","https://planetarynames.wr.usgs.gov/Feature/350"],["Wilhelms, The Geologic History of the Moon (USGS Prof. Paper 1348, 1987)","https://pubs.usgs.gov/publication/pp1348"],["NASA NSSDCA: Soviet lunar missions","https://nssdc.gsfc.nasa.gov/planetary/lunar/lunarussr.html"]],"Schickard":[["USGS/IAU Gazetteer: Schickard","https://planetarynames.wr.usgs.gov/Feature/5368"],["Wilhelms, The Geologic History of the Moon (USGS Prof. Paper 1348, 1987)","https://pubs.usgs.gov/publication/pp1348"]],"Gassendi":[["USGS/IAU Gazetteer: Gassendi","https://planetarynames.wr.usgs.gov/Feature/2111"],["Wilhelms, The Geologic History of the Moon (USGS Prof. Paper 1348, 1987)","https://pubs.usgs.gov/publication/pp1348"]],"Mare Nectaris":[["USGS/IAU Gazetteer: Mare Nectaris","https://planetarynames.wr.usgs.gov/Feature/3683"],["Wilhelms, The Geologic History of the Moon (USGS Prof. Paper 1348, 1987)","https://pubs.usgs.gov/publication/pp1348"],["Muller & Sjogren, Science (1968): Mascons","https://doi.org/10.1126/science.161.3842.680"]],"Sinus Iridum":[["USGS/IAU Gazetteer: Sinus Iridum","https://planetarynames.wr.usgs.gov/Feature/5565"],["Xiao et al., Science (2015): Chang'e-3 radar of northern Mare Imbrium","https://doi.org/10.1126/science.1259866"]],"Montes Apenninus":[["USGS/IAU Gazetteer: Montes Apenninus","https://planetarynames.wr.usgs.gov/Feature/4004"],["NASA NSSDCA: Apollo 15 lunar module","https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1971-063C"],["NASA JSC Lunar Sample Compendium: 15415, the Genesis Rock","https://curator.jsc.nasa.gov/lunar/lsc/15415.pdf"]],"Tranquility Base":[["USGS/IAU Gazetteer: Statio Tranquillitatis","https://planetarynames.wr.usgs.gov/Feature/5684"],["NASA NSSDCA: Apollo 11 lunar module","https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1969-059C"],["NASA JPL: Apollo 11 laser ranging experiment still returning data","https://www.jpl.nasa.gov/news/apollo-11-experiment-continues-to-return-valuable-data/"]],"Proclus":[["USGS/IAU Gazetteer: Proclus","https://planetarynames.wr.usgs.gov/Feature/4827"],["Wilhelms, The Geologic History of the Moon (USGS Prof. Paper 1348, 1987)","https://pubs.usgs.gov/publication/pp1348"]],"Mare Orientale":[["USGS/IAU Gazetteer: Mare Orientale","https://planetarynames.wr.usgs.gov/Feature/3685"],["NASA NSSDCA: Lunar Orbiter 4","https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1967-041A"],["Johnson et al., Science (2016): Formation of the Orientale multiring basin","https://doi.org/10.1126/science.aag0518"]],"Hadley–Apennine":[["USGS/IAU Gazetteer: Mons Hadley","https://planetarynames.wr.usgs.gov/Feature/3983"],["NASA NSSDCA: Apollo 15 lunar module","https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1971-063C"],["NASA NSSDCA: The Apollo 15 hammer and feather drop","https://nssdc.gsfc.nasa.gov/planetary/lunar/apollo_15_feather_drop.html"],["NASA: Memorial to fallen astronauts on the Moon","https://science.nasa.gov/resource/memorial-to-fallen-astronauts-on-the-moon"]],"Fra Mauro":[["USGS/IAU Gazetteer: Fra Mauro","https://planetarynames.wr.usgs.gov/Feature/2007"],["NASA NSSDCA: Apollo 14 lunar module","https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1971-008C"],["Wilhelms, The Geologic History of the Moon (USGS Prof. Paper 1348, 1987)","https://pubs.usgs.gov/publication/pp1348"],["Bellucci et al., EPSL (2019): Terrestrial-like zircon in an Apollo 14 breccia","https://doi.org/10.1016/j.epsl.2019.01.010"]],"Vallis Alpes":[["USGS/IAU Gazetteer: Vallis Alpes","https://planetarynames.wr.usgs.gov/Feature/6290"],["Wilhelms, The Geologic History of the Moon (USGS Prof. Paper 1348, 1987)","https://pubs.usgs.gov/publication/pp1348"]],"Rupes Recta":[["USGS/IAU Gazetteer: Rupes Recta","https://planetarynames.wr.usgs.gov/Feature/5230"],["Wilhelms, The Geologic History of the Moon (USGS Prof. Paper 1348, 1987)","https://pubs.usgs.gov/publication/pp1348"]],"Reiner Gamma":[["USGS/IAU Gazetteer: Reiner Gamma","https://planetarynames.wr.usgs.gov/Feature/4987"],["Johns Hopkins APL: Lunar Vertex mission","https://www.jhuapl.edu/destinations/missions/lunar-vertex"]],"Tsiolkovskiy":[["USGS/IAU Gazetteer: Tsiolkovskiy","https://planetarynames.wr.usgs.gov/Feature/6108"],["NASA NSSDCA: Soviet lunar missions","https://nssdc.gsfc.nasa.gov/planetary/lunar/lunarussr.html"],["Wieczorek et al., Science (2013): The crust of the Moon as seen by GRAIL","https://doi.org/10.1126/science.1231530"]],"Mare Moscoviense":[["USGS/IAU Gazetteer: Mare Moscoviense","https://planetarynames.wr.usgs.gov/Feature/3682"],["Wieczorek et al., Science (2013): The crust of the Moon as seen by GRAIL","https://doi.org/10.1126/science.1231530"],["NASA NSSDCA: Soviet lunar missions","https://nssdc.gsfc.nasa.gov/planetary/lunar/lunarussr.html"]],"Korolev":[["USGS/IAU Gazetteer: Korolev","https://planetarynames.wr.usgs.gov/Feature/3090"],["ESA: Mars Express images ice-filled Korolev crater (2018)","https://www.esa.int/Science_Exploration/Space_Science/Mars_Express_gets_festive_A_winter_wonderland_on_Mars"]],"Apollo":[["USGS/IAU Gazetteer: Apollo","https://planetarynames.wr.usgs.gov/Feature/326"],["Zhang et al., Nature (2024): Chang'e-6 basalts from the Apollo basin","https://doi.org/10.1038/s41586-024-08382-0"]],"Von Kármán":[["USGS/IAU Gazetteer: Von Kármán","https://planetarynames.wr.usgs.gov/Feature/6440"],["Li et al., Nature (2019): Chang'E-4 spectra of far-side mantle-derived material","https://doi.org/10.1038/s41586-019-1189-0"]],"Daedalus":[["USGS/IAU Gazetteer: Daedalus","https://planetarynames.wr.usgs.gov/Feature/1381"],["Space.com: Push to protect the radio-quiet lunar far side","https://www.space.com/moon-far-side-radio-quiet-telescope-project"]],"Shackleton":[["USGS/IAU Gazetteer: Shackleton","https://planetarynames.wr.usgs.gov/Feature/5450"],["Colaprete et al., Science (2010): Water in the LCROSS ejecta plume","https://doi.org/10.1126/science.1186986"],["NASA: Candidate Artemis landing regions (2024)","https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-Moon/"]],"Orion":[["Ridpath, Star Tales: Orion","http://www.ianridpath.com/startales/orion.html"],["Montargès et al., Nature (2021): A dusty veil shading Betelgeuse","https://doi.org/10.1038/s41586-021-03546-8"],["IAU Office for Astronomy Outreach: Djulpan (Yolŋu)","https://astro4edu.org/resources/media/ES10kP62vv67/"],["Lee et al. (2020): The Ojibwe Giizhig Anung Masinaaigan star map","https://arxiv.org/abs/2008.13214"],["Stellarium sky cultures: Egyptian","https://github.com/Stellarium/stellarium-skycultures/tree/master/egyptian"],["Stellarium sky cultures: Chinese","https://github.com/Stellarium/stellarium-skycultures/tree/master/chinese"]],"Ursa Major":[["Ridpath, Star Tales: Ursa Major","http://www.ianridpath.com/startales/ursamajor.html"],["Hagar, J. American Folklore (1900): The Celestial Bear (Mi'kmaq)","https://doi.org/10.2307/533799"],["Stellarium sky cultures: Egyptian","https://github.com/Stellarium/stellarium-skycultures/tree/master/egyptian"],["Stellarium sky cultures: Chinese","https://github.com/Stellarium/stellarium-skycultures/tree/master/chinese"]],"Ursa Minor":[["Ridpath, Star Tales: Ursa Minor","http://www.ianridpath.com/startales/ursaminor.html"],["Stellarium sky cultures: Mongolian","https://github.com/Stellarium/stellarium-skycultures/tree/master/mongolian"],["Stellarium sky cultures: Indian","https://github.com/Stellarium/stellarium-skycultures/tree/master/indian"],["Stellarium sky cultures: Chinese","https://github.com/Stellarium/stellarium-skycultures/tree/master/chinese"]],"Cassiopeia":[["Ridpath, Star Tales: Cassiopeia","http://www.ianridpath.com/startales/cassiopeia.html"],["Stellarium sky cultures: Chinese","https://github.com/Stellarium/stellarium-skycultures/tree/master/chinese"]],"Cygnus":[["Ridpath, Star Tales: Cygnus","http://www.ianridpath.com/startales/cygnus.html"],["Bowyer et al., Science (1965): Cosmic X-ray sources","https://doi.org/10.1126/science.147.3656.394"],["NASA: Kepler mission","https://science.nasa.gov/mission/kepler/"],["Stellarium sky cultures: Chinese","https://github.com/Stellarium/stellarium-skycultures/tree/master/chinese"]],"Lyra":[["Ridpath, Star Tales: Lyra","http://www.ianridpath.com/startales/lyra.html"],["Stellarium sky cultures: Chinese","https://github.com/Stellarium/stellarium-skycultures/tree/master/chinese"]],"Scorpius":[["Ridpath, Star Tales: Scorpius","http://www.ianridpath.com/startales/scorpius.html"],["Giacconi et al., Phys. Rev. Lett. (1962): X-rays from outside the solar system","https://doi.org/10.1103/PhysRevLett.9.439"],["Rogers, J. Brit. Astron. Assoc. (1998): Origins of the ancient constellations I, the Mesopotamian traditions","https://ui.adsabs.harvard.edu/abs/1998JBAA..108....9R"],["Stellarium sky cultures: Māori","https://github.com/Stellarium/stellarium-skycultures/tree/master/maori"],["Stellarium sky cultures: Hawaiian","https://github.com/Stellarium/stellarium-skycultures/tree/master/hawaiian_starlines"]],"Leo":[["Ridpath, Star Tales: Leo","http://www.ianridpath.com/startales/leo.html"],["Rogers, J. Brit. Astron. Assoc. (1998): Origins of the ancient constellations I, the Mesopotamian traditions","https://ui.adsabs.harvard.edu/abs/1998JBAA..108....9R"],["Stellarium sky cultures: Chinese","https://github.com/Stellarium/stellarium-skycultures/tree/master/chinese"]],"Taurus":[["Ridpath, Star Tales: Taurus","http://www.ianridpath.com/startales/taurus.html"],["Rogers, J. Brit. Astron. Assoc. (1998): Origins of the ancient constellations I, the Mesopotamian traditions","https://ui.adsabs.harvard.edu/abs/1998JBAA..108....9R"],["NZ Government: public holidays, including Matariki","https://www.govt.nz/browse/work/public-holidays-and-work/public-holidays-and-anniversary-dates/"],["Stellarium sky cultures: Indian","https://github.com/Stellarium/stellarium-skycultures/tree/master/indian"]],"Gemini":[["Ridpath, Star Tales: Gemini","http://www.ianridpath.com/startales/gemini.html"],["Rogers, J. Brit. Astron. Assoc. (1998): Origins of the ancient constellations I, the Mesopotamian traditions","https://ui.adsabs.harvard.edu/abs/1998JBAA..108....9R"],["Stellarium sky cultures: Indian","https://github.com/Stellarium/stellarium-skycultures/tree/master/indian"]],"Crux":[["Ridpath, Star Tales: Crux","http://www.ianridpath.com/startales/crux.html"],["All Skies Encyclopaedia: Boorong star names (after Stanbridge, 1857)","https://ase.exopla.net/index.php/Boorong_(Asterism_Names)"],["Stellarium sky cultures: Māori","https://github.com/Stellarium/stellarium-skycultures/tree/master/maori"]],"Sagittarius":[["Ridpath, Star Tales: Sagittarius","http://www.ianridpath.com/startales/sagittarius.html"],["Nobel Prize in Physics 2020 (Genzel, Ghez, Penrose)","https://www.nobelprize.org/prizes/physics/2020/summary/"],["Event Horizon Telescope, ApJL (2022): First Sagittarius A* results","https://doi.org/10.3847/2041-8213/ac6674"],["Rogers, J. Brit. Astron. Assoc. (1998): Origins of the ancient constellations I, the Mesopotamian traditions","https://ui.adsabs.harvard.edu/abs/1998JBAA..108....9R"]],"Aquila":[["Ridpath, Star Tales: Aquila","http://www.ianridpath.com/startales/aquila.html"],["Monnier et al., Science (2007): Imaging the surface of Altair","https://doi.org/10.1126/science.1143205"],["Stellarium sky cultures: Chinese","https://github.com/Stellarium/stellarium-skycultures/tree/master/chinese"]],"Canis Major":[["Ridpath, Star Tales: Canis Major","http://www.ianridpath.com/startales/canismajor.html"],["Stellarium sky cultures: Egyptian","https://github.com/Stellarium/stellarium-skycultures/tree/master/egyptian"],["Stellarium sky cultures: Chinese","https://github.com/Stellarium/stellarium-skycultures/tree/master/chinese"]],"Pegasus":[["Ridpath, Star Tales: Pegasus","http://www.ianridpath.com/startales/pegasus.html"],["Mayor & Queloz, Nature (1995): A Jupiter-mass companion to a solar-type star","https://doi.org/10.1038/378355a0"],["Nobel Prize in Physics 2019","https://www.nobelprize.org/prizes/physics/2019/summary/"],["Rogers, J. Brit. Astron. Assoc. (1998): Origins of the ancient constellations I, the Mesopotamian traditions","https://ui.adsabs.harvard.edu/abs/1998JBAA..108....9R"]],"Andromeda":[["Ridpath, Star Tales: Andromeda","http://www.ianridpath.com/startales/andromeda.html"],["Hubble, ApJ (1929): A spiral nebula as a stellar system, Messier 31","https://doi.org/10.1086/143167"],["Sawala et al., Nature Astronomy (2025): No certainty of a Milky Way–Andromeda collision","https://doi.org/10.1038/s41550-025-02563-1"]],"Perseus":[["Ridpath, Star Tales: Perseus","http://www.ianridpath.com/startales/perseus.html"],["Goodricke, Phil. Trans. (1783): The period of Algol","https://doi.org/10.1098/rstl.1783.0027"]],"Boötes":[["Ridpath, Star Tales: Boötes","http://www.ianridpath.com/startales/bootes.html"],["Polynesian Voyaging Society: Building and naming Hōkūleʻa","https://archive.hokulea.com/ike/kalai_waa/kane_building_hokulea.html"],["Hagar, J. American Folklore (1900): The Celestial Bear (Mi'kmaq)","https://doi.org/10.2307/533799"],["Astronomy: May 27, 1933, Arcturus lights up the World's Fair","https://www.astronomy.com/today-in-the-history-of-astronomy/may-27-1933-arcturus-lights-up-the-worlds-fair/"]],"Virgo":[["Ridpath, Star Tales: Virgo","http://www.ianridpath.com/startales/virgo.html"],["Event Horizon Telescope, ApJL (2019): First M87 results","https://doi.org/10.3847/2041-8213/ab0ec7"],["Rogers, J. Brit. Astron. Assoc. (1998): Origins of the ancient constellations I, the Mesopotamian traditions","https://ui.adsabs.harvard.edu/abs/1998JBAA..108....9R"]],"Auriga":[["Ridpath, Star Tales: Auriga","http://www.ianridpath.com/startales/auriga.html"],["Rogers, J. Brit. Astron. Assoc. (1998): Origins of the ancient constellations I, the Mesopotamian traditions","https://ui.adsabs.harvard.edu/abs/1998JBAA..108....9R"],["Stellarium sky cultures: Indian","https://github.com/Stellarium/stellarium-skycultures/tree/master/indian"]],"Centaurus":[["Ridpath, Star Tales: Centaurus","http://www.ianridpath.com/startales/centaurus.html"],["Anglada-Escudé et al., Nature (2016): A planet around Proxima Centauri","https://doi.org/10.1038/nature19106"],["All Skies Encyclopaedia: Boorong star names (after Stanbridge, 1857)","https://ase.exopla.net/index.php/Boorong_(Asterism_Names)"],["Stellarium sky cultures: Chinese","https://github.com/Stellarium/stellarium-skycultures/tree/master/chinese"]],"Carina":[["Ridpath, Star Tales: Carina","http://www.ianridpath.com/startales/carina.html"],["Hamacher & Frew, JAHH (2010): An Aboriginal record of the Great Eruption of Eta Carinae","https://arxiv.org/abs/1010.4610"],["All Skies Encyclopaedia: Boorong star names (after Stanbridge, 1857)","https://ase.exopla.net/index.php/Boorong_(Asterism_Names)"],["Stellarium sky cultures: Chinese","https://github.com/Stellarium/stellarium-skycultures/tree/master/chinese"]],"Corona Borealis":[["Ridpath, Star Tales: Corona Borealis","http://www.ianridpath.com/startales/coronaborealis.html"],["AAVSO: The myths of Corona Borealis","https://www.aavso.org/myths-crb"]],"Draco":[["Ridpath, Star Tales: Draco","http://www.ianridpath.com/startales/draco.html"]],"Hercules":[["Ridpath, Star Tales: Hercules","http://www.ianridpath.com/startales/hercules.html"],["SETI Institute: The Arecibo message","https://www.seti.org/seti-institute/project/details/arecibo-message"]],"Cancer":[["Ridpath, Star Tales: Cancer","http://www.ianridpath.com/startales/cancer.html"],["Rogers, J. Brit. Astron. Assoc. (1998): Origins of the ancient constellations I, the Mesopotamian traditions","https://ui.adsabs.harvard.edu/abs/1998JBAA..108....9R"],["Stellarium sky cultures: Chinese","https://github.com/Stellarium/stellarium-skycultures/tree/master/chinese"]],"Aries":[["Ridpath, Star Tales: Aries","http://www.ianridpath.com/startales/aries.html"],["Rogers, J. Brit. Astron. Assoc. (1998): Origins of the ancient constellations I, the Mesopotamian traditions","https://ui.adsabs.harvard.edu/abs/1998JBAA..108....9R"]],"Capricornus":[["Ridpath, Star Tales: Capricornus","http://www.ianridpath.com/startales/capricornus.html"],["Rogers, J. Brit. Astron. Assoc. (1998): Origins of the ancient constellations I, the Mesopotamian traditions","https://ui.adsabs.harvard.edu/abs/1998JBAA..108....9R"]],"Aquarius":[["Ridpath, Star Tales: Aquarius","http://www.ianridpath.com/startales/aquarius.html"],["Gillon et al., Nature (2017): Seven planets around TRAPPIST-1","https://doi.org/10.1038/nature21360"],["Rogers, J. Brit. Astron. Assoc. (1998): Origins of the ancient constellations I, the Mesopotamian traditions","https://ui.adsabs.harvard.edu/abs/1998JBAA..108....9R"]],"Libra":[["Ridpath, Star Tales: Libra","http://www.ianridpath.com/startales/libra.html"],["Rogers, J. Brit. Astron. Assoc. (1998): Origins of the ancient constellations I, the Mesopotamian traditions","https://ui.adsabs.harvard.edu/abs/1998JBAA..108....9R"]],"Ophiuchus":[["Ridpath, Star Tales: Ophiuchus","http://www.ianridpath.com/startales/ophiuchus.html"]],"Corvus":[["Ridpath, Star Tales: Corvus and Crater","http://www.ianridpath.com/startales/corvusandcrater.html"],["Rogers, J. Brit. Astron. Assoc. (1998): Origins of the ancient constellations I, the Mesopotamian traditions","https://ui.adsabs.harvard.edu/abs/1998JBAA..108....9R"]],"Hydra":[["Ridpath, Star Tales: Hydra","http://www.ianridpath.com/startales/hydra.html"],["Stellarium sky cultures: Chinese","https://github.com/Stellarium/stellarium-skycultures/tree/master/chinese"]],"Delphinus":[["Ridpath, Star Tales: Delphinus","http://www.ianridpath.com/startales/delphinus.html"],["AAVSO: Nova Delphini 2013 (V339 Del)","https://www.aavso.org/v339-del"]],"Eridanus":[["Ridpath, Star Tales: Eridanus","http://www.ianridpath.com/startales/eridanus.html"],["Carciofi et al., ApJ (2008): The rotational oblateness of Achernar","https://doi.org/10.1086/586895"]],"Canis Minor":[["Ridpath, Star Tales: Canis Minor","http://www.ianridpath.com/startales/canisminor.html"],["Lee et al. (2020): The Ojibwe Giizhig Anung Masinaaigan star map","https://arxiv.org/abs/2008.13214"]]};
+const MOON = [
+  { name: "Tycho", kind: "Crater", lat: -43.3, lon: -11.22, size: 85, tier: 1,
+    named: "1651, Giovanni Battista Riccioli, in his Almagestum Novum",
+    origin: "Tycho Brahe (1546–1601), the Danish astronomer whose naked-eye measurements of planetary positions were precise enough for Johannes Kepler to deduce that orbits are ellipses.",
+    science: "Tycho's floor lies about 4.7 km below its rim, with a central peak about 2 km high and pools of frozen impact melt on its floor. Its rays are bright because they are fresh. Micrometeorite impacts and the solar wind slowly darken exposed lunar soil, a process called space weathering, so bright rays mark young craters. Its age, roughly 108 to 110 million years, comes from Apollo 17 samples of a landslide and secondary craters more than 2,000 km away that are thought to have been triggered by debris from Tycho.",
+    story: "Its rays stretch across much of the southern near side and are easy to see with the naked eye at full Moon. Surveyor 7 landed on Tycho's northern ejecta blanket in January 1968, the only Surveyor mission sent to the rugged highlands. In 2001: A Space Odyssey, Tycho is where the monolith TMA-1 is dug up." },
+  { name: "Copernicus", kind: "Crater", lat: 9.62, lon: -20.08, size: 96, tier: 1,
+    named: "1651, Giovanni Battista Riccioli",
+    origin: "Nicolaus Copernicus (1473–1543), who placed the Sun at the center of the planetary system.",
+    science: "Copernicus is a textbook complex crater: about 3.8 km deep, with terraced walls that slumped inward right after the impact and central peaks that rebounded from below. Spectra of those peaks show olivine-rich rock lifted from kilometers down. Ray material sampled by Apollo 12 dates the impact to about 800 million years ago. The crater is the type example for the Copernican period, the youngest division of lunar history.",
+    story: "Riccioli, a Jesuit who rejected the Sun-centered model, put Copernicus, Kepler and Galileo out in the Ocean of Storms. This is often read as a gentle jab. Lunar Orbiter 2's oblique view across the crater in November 1966 was widely called the picture of the century." },
+  { name: "Mare Crisium", alt: "Sea of Crises", kind: "Mare", lat: 16.18, lon: 59.1, size: 556, tier: 1,
+    named: "1651, Giovanni Battista Riccioli",
+    origin: "Riccioli named the dark plains for weather and states of mind, reflecting the old belief that the Moon's phases influenced Earth's weather.",
+    science: "Like the other maria, Crisium is an impact basin later flooded by iron-rich basalt lava, which is why it looks dark. In 1968 Paul Muller and William Sjogren tracked Lunar Orbiter spacecraft and found that orbits sped up over basins like this. The cause was mascons, mass concentrations of dense lava and uplifted mantle beneath the surface. Basalt returned by Luna 24 is about 3.3 billion years old.",
+    story: "On July 21, 1969, while Armstrong and Aldrin were on the surface, the uncrewed Soviet probe Luna 15 crashed into Crisium during an attempt to return soil samples. Luna 24 succeeded here in 1976. In March 2025, Firefly's Blue Ghost lander touched down in Crisium and operated through a full lunar day." },
+  { name: "Mare Tranquillitatis", alt: "Sea of Tranquility", kind: "Mare", lat: 8.35, lon: 30.83, size: 876, tier: 1,
+    named: "1651, Giovanni Battista Riccioli",
+    origin: "Latin for Sea of Tranquility, one of Riccioli's weather-and-temperament names.",
+    science: "Its basalts are rich in titanium, mostly in the mineral ilmenite, which gives the sea a faint blue cast in color-enhanced images. Apollo 11 samples from its edge crystallized 3.6 to 3.9 billion years ago. They also contained a new mineral, armalcolite, named for Armstrong, Aldrin and Collins.",
+    story: "Ranger 8 and Surveyor 5 scouted the sea before Apollo 11's lunar module Eagle landed on its southwestern edge on July 20, 1969." },
+  { name: "Mare Imbrium", alt: "Sea of Showers", kind: "Mare", lat: 34.72, lon: -14.91, size: 1146, tier: 1,
+    named: "1651, Giovanni Battista Riccioli",
+    origin: "Imbrium means rains or showers, part of Riccioli's weather-themed set.",
+    science: "Imbrium fills one of the largest and youngest major basins on the Moon, blasted out about 3.9 billion years ago. Ejecta from the impact carved long grooves and valleys across the near side, called the Imbrium sculpture. Its debris is so widespread that geologists use it as a time marker: the Imbrian period begins with this impact. Lava filled the basin over the following several hundred million years.",
+    story: "In 1970 the Soviet rover Lunokhod 1, the first robotic rover on another world, drove about 10 km across the sea. China's Chang'e 3 and its Yutu rover landed in northern Imbrium in December 2013." },
+  { name: "Oceanus Procellarum", alt: "Ocean of Storms", kind: "Mare", lat: 20.67, lon: -56.68, size: 2592, tier: 1,
+    named: "1651, Giovanni Battista Riccioli",
+    origin: "The only lunar mare called an ocean, it covers much of the western near side.",
+    science: "Lunar Prospector's gamma-ray maps showed this region is enriched in thorium and other heat-producing elements, a chemical package called KREEP. This area, the Procellarum KREEP Terrane, likely stayed hot longer, which may explain why near-side volcanism lasted so long. In 2014 NASA's GRAIL gravity mission found a rectangular pattern of buried rift-like structures around it, evidence against the idea that it is one giant impact basin.",
+    story: "Luna 9 made the first soft landing on the Moon here in 1966. Apollo 12 landed within walking distance of Surveyor 3 in 1969, and the crew brought home pieces of the probe. In 2020 Chang'e 5 returned basalts about 2 billion years old, the youngest lunar volcanic rocks yet sampled." },
+  { name: "Mare Serenitatis", alt: "Sea of Serenity", kind: "Mare", lat: 27.29, lon: 18.36, size: 674, tier: 1,
+    named: "1651, Giovanni Battista Riccioli",
+    origin: "Latin for Sea of Serenity, another of Riccioli's moods.",
+    science: "Serenitatis has a strong mascon, and its rim shows rings of lava with different compositions, a record of separate eruptions. Near its southeastern shore, Apollo 17 geologist Harrison Schmitt found orange soil. It turned out to be tiny glass beads from volcanic fire fountains about 3.6 billion years ago.",
+    story: "Apollo 17 landed in the Taurus-Littrow valley on the sea's southeastern edge in December 1972, the last crewed landing so far. In 1973 the Soviet rover Lunokhod 2 drove about 39 km around Le Monnier crater on the eastern shore. That was the record for driving on another world until NASA's Opportunity rover passed it on Mars in 2014." },
+  { name: "Plato", kind: "Crater", lat: 51.62, lon: -9.38, size: 101, tier: 1,
+    named: "1651, Giovanni Battista Riccioli",
+    origin: "The Greek philosopher Plato. Johannes Hevelius had earlier called it Lacus Niger Major, the Greater Black Lake.",
+    science: "Plato formed after the Imbrium impact, and lava later welled up and flooded its floor. That makes it one of the smoothest and darkest spots on the Moon, rivaled only by Grimaldi. The few tiny craterlets on its floor are a classic test of telescope optics and steady air.",
+    story: "Observers have reported odd glows, hazes and flashes in Plato for centuries, making it a favorite target for so-called transient lunar phenomena. Most such reports are probably tricks of lighting and Earth's atmosphere." },
+  { name: "Aristarchus", kind: "Crater", lat: 23.73, lon: -47.49, size: 40, tier: 2,
+    named: "1651, Giovanni Battista Riccioli",
+    origin: "Aristarchus of Samos, who around 270 BC proposed that Earth orbits the Sun, about 1,800 years before Copernicus.",
+    science: "This young crater is the brightest large formation on the Moon. It sits on the Aristarchus Plateau, which is blanketed with dark volcanic ash. Nearby Vallis Schröteri, about 185 km long, is the largest sinuous rille on the Moon, a channel cut by flowing lava. Apollo 15 and Lunar Prospector both detected radon gas escaping from the region.",
+    story: "In 1787 William Herschel saw glowing spots on the Moon's night side and thought they were erupting volcanoes. He was almost certainly seeing Aristarchus lit by earthshine." },
+  { name: "Clavius", kind: "Crater", lat: -58.62, lon: -14.73, size: 231, tier: 2,
+    named: "1651, Giovanni Battista Riccioli",
+    origin: "Christopher Clavius (1537/38–1612), the Jesuit mathematician behind the calculations for the Gregorian calendar of 1582.",
+    science: "Clavius is roughly 4 billion years old, ancient enough that later impacts have pocked its floor. In 2020 the airborne SOFIA observatory detected molecular water in sunlit Clavius, the first clear detection of water molecules rather than other hydrated minerals. The concentration was about 100 to 400 parts per million, roughly a 12-ounce bottle of water spread through a cubic meter of soil.",
+    story: "An arc of craters across its floor, each smaller than the last, is a favorite test of telescope sharpness. In 2001: A Space Odyssey, Clavius is home to the lunar base." },
+  { name: "Kepler", kind: "Crater", lat: 8.12, lon: -38.01, size: 30, tier: 2,
+    named: "1651, Giovanni Battista Riccioli",
+    origin: "Johannes Kepler (1571–1630), who discovered the laws of planetary motion.",
+    science: "Kepler is a young crater with a bright ray system. Its rays overlap those of Copernicus, showing that both impacts are recent in lunar terms. At 30 km across it sits near the size where lunar craters change from simple bowls to complex craters with terraces and central peaks.",
+    story: "Kepler also wrote Somnium, a tale of a journey to the Moon published after his death in 1634 and often called one of the first works of science fiction." },
+  { name: "Grimaldi", kind: "Crater", lat: -5.38, lon: -68.36, size: 235, tier: 2,
+    named: "1651, Giovanni Battista Riccioli",
+    origin: "Francesco Maria Grimaldi (1618–1663), Riccioli's fellow Jesuit, who drew the 1651 map on which most of today's lunar names first appeared. He also discovered and named the diffraction of light.",
+    science: "Grimaldi is actually a small two-ring impact basin, with a faint outer ring about 430 km across. Its dark mare floor is one of the darkest spots on the near side, and gravity surveys show a mascon beneath it.",
+    story: "Riccioli gave his collaborator a prominent crater and placed his own crater, Riccioli, right next door." },
+  { name: "Langrenus", kind: "Crater", lat: -8.86, lon: 61.04, size: 132, tier: 2,
+    named: "1645, by Michael van Langren himself",
+    origin: "Michael van Langren (Langrenus), the Flemish cartographer who published the first lunar map with named features.",
+    science: "Langrenus is a well-preserved complex crater with terraced walls and a central peak complex. It is younger than the surrounding Mare Fecunditatis, so it has bright walls and faint rays.",
+    story: "Van Langren hoped for royal patronage, so he named about 300 features after Spanish royalty, saints and Catholic notables. Riccioli replaced nearly all of them six years later. The crater van Langren named after himself is one of the few that survived." },
+  { name: "Ptolemaeus", kind: "Crater", lat: -9.16, lon: -1.84, size: 154, tier: 2,
+    named: "1651, Giovanni Battista Riccioli",
+    origin: "Claudius Ptolemy, whose Almagest shaped astronomy for 1,400 years. Riccioli titled his own book the Almagestum Novum, the New Almagest.",
+    science: "This ancient walled plain is older than the Imbrium basin. Its smooth floor is covered by light plains material from the Imbrium era rather than dark basalt. Neighboring Alphonsus has dark-halo craters, small volcanic vents that sprayed dark ash.",
+    story: "In 1958 Nikolai Kozyrev reported a spectrum of a glow in Alphonsus, one of the most cited claims of activity on the Moon. In 1965 Ranger 9 crashed into Alphonsus while US television networks broadcast its final pictures live." },
+  { name: "Archimedes", kind: "Crater", lat: 29.72, lon: -3.99, size: 81, tier: 2,
+    named: "1651, Giovanni Battista Riccioli",
+    origin: "Archimedes of Syracuse, the Greek mathematician and engineer.",
+    science: "Archimedes is a timing clue. It sits inside the Imbrium basin, so it formed after that impact, but its floor and ejecta are flooded by mare lava, so it formed before the basin filled. That shows a gap between basin formation and lava flooding.",
+    story: "In September 1959 the Soviet probe Luna 2 struck the plain east of Archimedes, the first human-made object to reach the Moon." },
+  { name: "Schickard", kind: "Crater", lat: -44.38, lon: -55.11, size: 212, tier: 2,
+    named: "1651, Giovanni Battista Riccioli",
+    origin: "Wilhelm Schickard (1592–1635), a German professor who built a calculating clock in 1623, one of the earliest mechanical calculators.",
+    science: "This large, eroded crater near the southwest limb has a patchy floor of dark basalt and pale highland debris. Its neighbor Wargentin is a rarity: lava filled it to the brim, leaving a raised plateau instead of a bowl.",
+    story: "Because it sits near the limb, Schickard is foreshortened into a long oval from Earth. It is a good example of how hard the edges of the near side were to map before spacecraft." },
+  { name: "Gassendi", kind: "Crater", lat: -17.55, lon: -39.96, size: 111, tier: 2,
+    named: "1651, Giovanni Battista Riccioli",
+    origin: "Pierre Gassendi (1592–1655), who in 1631 became the first person to observe a transit of Mercury, as Kepler had predicted.",
+    science: "Gassendi is a floor-fractured crater. Magma rising beneath it pushed the floor upward and cracked it into a network of rilles without erupting at the surface. It sits on the northern rim of the Mare Humorum basin.",
+    story: "Its geology made it a candidate landing site during Apollo planning." },
+  { name: "Mare Nectaris", alt: "Sea of Nectar", kind: "Mare", lat: -15.19, lon: 34.6, size: 339, tier: 2,
+    named: "1651, Giovanni Battista Riccioli",
+    origin: "Latin for Sea of Nectar.",
+    science: "The impact that formed the Nectaris basin is a time marker for the whole Moon: geologists start the Nectarian period with it. Its exact age is still debated, somewhere between about 3.9 and 4.2 billion years, depending on how Apollo 16 samples are interpreted. Like other maria, it has a mascon.",
+    story: "The crater trio Theophilus, Cyrillus and Catharina lines its western shore, and the young crater Theophilus cuts into the older Cyrillus." },
+  { name: "Sinus Iridum", alt: "Bay of Rainbows", kind: "Bay", lat: 45.01, lon: -31.67, size: 249, tier: 2,
+    named: "1651, Giovanni Battista Riccioli",
+    origin: "Latin for Bay of Rainbows.",
+    science: "The bay is a large crater whose seaward rim was buried by Imbrium lavas, leaving a semicircle of mountains, the Montes Jura. The Yutu rover's ground-penetrating radar, operating nearby in Mare Imbrium, found several stacked layers of lava under the surface.",
+    story: "A few days after first quarter the Montes Jura catch sunlight while the bay floor is still dark, so a bright arc appears. Observers call it the Golden Handle. China's Chang'e 3 landed in neighboring Mare Imbrium in 2013." },
+  { name: "Montes Apenninus", alt: "Lunar Apennines", kind: "Mountain range", lat: 19.87, lon: 0.03, size: 600, linear: true, tier: 2,
+    named: "1647, Johannes Hevelius, in his Selenographia",
+    origin: "Hevelius named lunar mountain ranges after ranges on Earth. Most of his other names were dropped, but the mountains kept theirs.",
+    science: "These peaks, rising up to about 5 km, are part of the rim of the Imbrium basin, crust thrust up by the impact. At their foot, Apollo 15 collected the Genesis Rock, a piece of anorthosite roughly 4 billion years old. Anorthosite formed when the young Moon's global magma ocean crystallized and light plagioclase crystals floated to the top.",
+    story: "Apollo 15 landed beside Mons Hadley, one of the range's peaks, in July 1971." },
+  { name: "Tranquility Base", alt: "Statio Tranquillitatis", kind: "Landing site", lat: 0.674, lon: 23.473, size: 0, site: true, tier: 2,
+    named: "July 20, 1969, by Neil Armstrong. The IAU made Statio Tranquillitatis official in 1970.",
+    origin: "Armstrong's first words after touchdown used the call sign Tranquility Base, the name of the Apollo 11 landing site in the Sea of Tranquility.",
+    science: "Apollo 11 left a laser retroreflector that observatories still bounce lasers off. Timing the light's round trip shows the Moon is moving away from Earth by about 3.8 cm per year, because Earth's tides transfer angular momentum to the Moon's orbit.",
+    story: "The lunar module Eagle landed several kilometers past its target after Armstrong flew it by hand over a boulder field, with well under a minute of fuel to spare. Three small craters nearby are named Armstrong, Aldrin and Collins." },
+  { name: "Proclus", kind: "Crater", lat: 16.09, lon: 46.89, size: 27, tier: 2,
+    named: "1651, Giovanni Battista Riccioli",
+    origin: "Proclus, a 5th-century Greek philosopher who led Plato's Academy in Athens.",
+    science: "Proclus is small but among the brightest craters on the Moon. Its rays fan out unevenly and leave a wedge-shaped zone with no rays at all. Lab experiments show this pattern forms when an impactor strikes at a shallow, grazing angle.",
+    story: "Its rays streak across the neighboring Palus Somnium, the Marsh of Sleep, on the western edge of Mare Crisium." },
+  { name: "Mare Orientale", alt: "Eastern Sea", kind: "Mare", lat: -19.87, lon: -94.67, size: 294, tier: 3,
+    named: "1906, Julius Franz, in his book Der Mond. The name was revived in Kuiper's lunar atlas of 1960.",
+    origin: "Franz named it when east and west on the Moon were given as seen in Earth's sky, so this limb was east. In 1961 the IAU switched to the convention an astronaut on the surface would use, so the Eastern Sea now lies on the western limb.",
+    science: "Orientale is the best-preserved large multi-ring basin on the Moon. Its rings of mountains, the outer one about 930 km across, have barely been buried by lava. In 1967 Lunar Orbiter 4 revealed it as a giant bullseye. In 2016 GRAIL's gravity maps helped show how the rings formed as the crust collapsed after the impact.",
+    story: "From Earth it is only a sliver at the limb, so its full shape was unknown until spacecraft photographed it." },
+  { name: "Hadley–Apennine", alt: "Apollo 15 landing site", kind: "Landing site", lat: 26.13, lon: 3.63, size: 0, site: true, tier: 3,
+    named: "Named for neighboring Mons Hadley and the Apennine mountains",
+    origin: "Mons Hadley honors John Hadley (1682–1744), the English mathematician who invented the reflecting octant used for navigation at sea.",
+    science: "Hadley Rille, which the crew drove along, is a sinuous channel about 1.2 km wide and around 300 m deep, carved by flowing lava or formed by a collapsed lava tube. The site was chosen to sample both mare basalt and ancient mountain crust in a single mission.",
+    story: "Dave Scott and Jim Irwin landed in July 1971 and drove the first Lunar Roving Vehicle. On live TV, Scott dropped a hammer and a falcon feather together. With no air resistance, they hit the ground at the same moment, as Galileo predicted. The crew also left Fallen Astronaut, a small aluminum figure with a plaque naming 14 astronauts and cosmonauts who had died." },
+  { name: "Fra Mauro", kind: "Crater", lat: -6.06, lon: -16.97, size: 97, tier: 3,
+    named: "Standardized in the first official IAU lunar nomenclature, 1935",
+    origin: "Fra Mauro, a 15th-century Venetian monk whose map of the world, completed around 1450, was one of the most detailed of its time.",
+    science: "The hilly Fra Mauro Formation around the crater is thought to be debris thrown out by the Imbrium impact, so samples here help date that event. In 2019 researchers reported that one Apollo 14 rock, Big Bertha, contains a fragment whose chemistry suggests it crystallized on Earth about 4 billion years ago and was blasted to the Moon.",
+    story: "Apollo 13 was headed here when its oxygen tank exploded. Apollo 14 landed instead in February 1971, and Alan Shepard hit two golf balls with a makeshift club." },
+  { name: "Vallis Alpes", alt: "Alpine Valley", kind: "Valley", lat: 49.21, lon: 3.63, size: 155, linear: true, tier: 3,
+    named: "Discovery usually credited to Francesco Bianchini, 1727",
+    origin: "The valley cuts through the Montes Alpes, which Hevelius named after the Alps.",
+    science: "The valley is about 155 km long and up to 10 km wide. It is a graben, a strip of crust that dropped down between parallel faults, linked to stresses from the Imbrium basin. A thin, winding lava rille runs along its floor.",
+    story: "The floor rille is narrow enough to challenge good amateur telescopes, so seeing it is a point of pride among lunar observers." },
+  { name: "Rupes Recta", alt: "The Straight Wall", kind: "Fault scarp", lat: -21.67, lon: -7.7, size: 116, linear: true, tier: 3,
+    named: "Latin name standardized by the IAU. Observers have long called it the Straight Wall.",
+    origin: "Rupes Recta means straight cliff.",
+    science: "It is a normal fault: the crust was stretched and the ground on one side dropped by a few hundred meters. The weight of mare lava filling the basin probably caused the stretching. Despite its appearance, the slope is gentle, only around 7 degrees.",
+    story: "Before local noon its shadow draws a dark line across Mare Nubium. After noon the slope faces the Sun and shows as a bright line." },
+  { name: "Reiner Gamma", kind: "Lunar swirl", lat: 7.39, lon: -58.96, size: 73, tier: 3,
+    named: "Takes its name from the nearby crater Reiner",
+    origin: "Reiner honors Vincenzo Reinieri, a student of Galileo. The Greek letter marks a feature associated with that crater.",
+    science: "Reiner Gamma has no relief. It is a bright, tadpole-shaped swirl on the dark mare, and it lines up with a strong patch of magnetized crust. One leading idea is that this mini-magnetosphere deflects the solar wind, so the soil stays bright instead of weathering dark. Another is that electrically charged dust collects there. NASA's Lunar Vertex mission was selected to measure it from the surface.",
+    story: "Similar swirls appear elsewhere on the Moon, often opposite large impact basins, which hints at how the magnetic anomalies formed." },
+  { name: "Tsiolkovskiy", kind: "Crater", lat: -20.38, lon: 128.97, size: 184, far: true, tier: 3,
+    named: "1961, IAU, after the Soviet Luna 3 photographs of 1959",
+    origin: "Konstantin Tsiolkovsky (1857–1935), a Russian schoolteacher who derived the rocket equation in 1903.",
+    science: "Its dark lava floor and bright central peak stand out against the pale far-side highlands. The far side has few maria because its crust is much thicker, so magma rarely reached the surface. Tsiolkovskiy was deep enough for lava to break through.",
+    story: "It was one of the few features recognizable in Luna 3's grainy first images of the far side." },
+  { name: "Mare Moscoviense", alt: "Sea of Muscovy", kind: "Mare", lat: 27.28, lon: 148.12, size: 276, far: true, tier: 3,
+    named: "Proposed by Soviet scientists after Luna 3 in 1959. Accepted by the IAU in 1961.",
+    origin: "Lunar seas are traditionally named for weather and states of mind, so a sea named for a place broke the pattern.",
+    science: "GRAIL's gravity maps show the crust beneath Moscoviense is among the thinnest on the Moon, which helps explain why lava reached the surface here on the thick-crusted far side. Its rings are oddly off-center, which has led some researchers to propose that two impacts overlapped.",
+    story: "It is one of the few maria on the far side. It appeared as a dark smudge in the first images Luna 3 sent back in October 1959." },
+  { name: "Korolev", kind: "Basin", lat: -4.19, lon: -157.41, size: 423, far: true, tier: 3,
+    named: "1970, IAU",
+    origin: "Sergei Korolev (1907–1966), chief designer of the rockets behind Sputnik and Yuri Gagarin's flight. His identity was a Soviet state secret until his death.",
+    science: "Korolev is a peak-ring basin: the impact was large enough that instead of a single central peak, the rebounding crust formed an inner ring of mountains.",
+    story: "A crater on Mars also carries Korolev's name. That crater is filled with water ice." },
+  { name: "Apollo", kind: "Basin", lat: -35.69, lon: -151.48, size: 524, far: true, tier: 3,
+    named: "1970, IAU",
+    origin: "Named for the Apollo program, which landed twelve people on the Moon between 1969 and 1972.",
+    science: "Apollo is a double-ring basin inside the even larger South Pole–Aitken basin, so its craters dig into deep crust. In June 2024 China's Chang'e 6 landed in southern Apollo and returned about 1.9 kg of soil and rock, the first samples ever brought back from the far side.",
+    story: "Craters inside the basin are named for the seven Challenger astronauts, adopted soon after the 1986 accident, and the seven Columbia astronauts, approved in 2006." },
+  { name: "Von Kármán", kind: "Crater", lat: -44.45, lon: 176.25, size: 186, far: true, tier: 3,
+    named: "1970, IAU",
+    origin: "Theodore von Kármán (1881–1963), the Hungarian-American aerospace engineer who co-founded NASA's Jet Propulsion Laboratory.",
+    science: "Von Kármán lies within South Pole–Aitken, the largest and oldest well-preserved impact basin on the Moon, about 2,500 km across. Spectra from the Yutu-2 rover showed olivine and low-calcium pyroxene. The team suggested these minerals may come from the lunar mantle, dug up by the nearby Finsen impact. That interpretation is still being tested.",
+    story: "On January 3, 2019, China's Chang'e 4 made the first soft landing on the far side here. The Moon blocks direct radio contact with Earth, so the mission relayed signals through the Queqiao satellite beyond the Moon." },
+  { name: "Daedalus", kind: "Crater", lat: -5.83, lon: 179.4, size: 94, far: true, tier: 3,
+    named: "1970, IAU",
+    origin: "Daedalus, the craftsman of Greek myth who built wings of feathers and wax for himself and his son Icarus.",
+    science: "Daedalus sits almost at the center of the far side, where the bulk of the Moon blocks radio noise from Earth. That makes it one of the quietest radio environments in the inner solar system and a proposed site for a radio telescope that could hear the faint signals of the early universe.",
+    story: "The Apollo 11 crew photographed Daedalus from orbit, and the image became one of the classic portraits of a lunar crater." },
+  { name: "Shackleton", kind: "Crater", lat: -89.67, lon: 129.78, size: 21, polar: true, tier: 3,
+    named: "1994, IAU",
+    origin: "Ernest Shackleton (1874–1922), the Antarctic explorer.",
+    science: "Shackleton sits almost on the south pole and is about 4 km deep. The Moon's spin axis is tilted only about 1.5 degrees, so sunlight here always arrives nearly sideways. The rim is lit for much of the year, while the floor stays in permanent shadow at temperatures cold enough to trap ice. In 2009 the LCROSS impactor struck nearby Cabeus crater and measured a few percent water by mass in the debris.",
+    story: "The ridges and rims around Shackleton are among the candidate landing regions for NASA's Artemis program, chosen for near-constant sunlight beside permanently shadowed ice." }
+];
+
+/* ======================================================================
+   CONSTELLATIONS — names across cultures. Each entry: [culture, name, gloss].
+   ====================================================================== */
+const STARS = [
+  { id: "Ori", name: "Orion", meaning: "The Hunter", tier: 1,
+    names: [
+      ["Greek", "Ōríōn", "The giant hunter of myth."],
+      ["Arabic", "al-Jabbār", "The Giant. Another old name, al-Jawzāʾ, survives in Betelgeuse, from yad al-jawzāʾ, the hand of al-Jawzāʾ."],
+      ["Ancient Egypt", "Sah", "A god identified with Osiris. The Pyramid Texts describe the dead king rising to join Sah in the sky."],
+      ["Chinese", "Shēn 参", "Three Stars, the belt. One of the 28 lunar mansions."],
+      ["Ojibwe", "Biboonkeonini", "The Wintermaker. His arms stretch to Procyon and Aldebaran, and his arrival brings the cold."],
+      ["Yolŋu", "Djulpan", "A canoe. The belt stars are three brothers who were swept into the sky after one ate a forbidden fish."],
+      ["Māori", "Tautoru", "The belt of three stars, a seasonal marker."]
+    ],
+    science: "Orion contains two of the brightest stars in the sky. Rigel is a blue supergiant about 860 light-years away. Betelgeuse is a red supergiant roughly 550 light-years away, large enough to swallow the orbit of Mars. Its Great Dimming in 2019–2020 was traced to a dust cloud the star had puffed out. Below the belt, the Orion Nebula (M42), about 1,340 light-years away, is the nearest large star-forming region. The young stars of the Trapezium light it up.",
+    story: "In Greek myth Orion was killed by a scorpion and set in the sky opposite Scorpius. The two are almost exactly half a sky apart, so one sets as the other rises and they are never seen together." },
+  { id: "UMa", name: "Ursa Major", meaning: "The Great Bear", tier: 1,
+    names: [
+      ["English", "Big Dipper / The Plough", "The seven brightest stars, called the Dipper in North America and the Plough in Britain and Ireland."],
+      ["Chinese", "Běidǒu 北斗", "The Northern Dipper, the celestial chariot of the emperor. Its turning handle marked the seasons."],
+      ["Hindu", "Saptarishi", "The Seven Sages of Vedic tradition."],
+      ["Ancient Egypt", "Meskhetyu", "The foreleg of a bull, drawn on tomb ceilings among the stars that never set."],
+      ["Mi'kmaq", "Muin", "A bear chased by seven bird hunters. The handle stars are Robin, Chickadee and Moose Bird, and the bear's blood reddens the autumn leaves."],
+      ["Arabic", "Banāt Naʿsh", "The Daughters of the Bier: mourners (the handle) following a funeral bier (the bowl)."]
+    ],
+    science: "Five of the Dipper's seven stars travel through space together as the Ursa Major Moving Group, about 80 light-years away. Mizar and its faint companion Alcor make a famous naked-eye pair, and Mizar was one of the first double stars seen through a telescope. The galaxies M81 and M82, about 12 million light-years away, are interacting. Their gravitational tug has set off a burst of star formation in M82. Ursa Major is the third-largest constellation.",
+    story: "In Greek myth, the nymph Callisto was turned into a bear and later placed in the sky. Dubhe and Merak, the two stars at the end of the bowl, point to Polaris." },
+  { id: "UMi", name: "Ursa Minor", meaning: "The Little Bear", tier: 1,
+    names: [
+      ["English", "Little Dipper", "Polaris marks the end of the handle."],
+      ["Greek", "Kynosoura", "The Dog's Tail, the origin of the English word cynosure, a center of attention."],
+      ["Mongolian", "Altan Gadas", "The Golden Peg (Polaris), the stake around which the sky's horses are tethered."],
+      ["Arabic", "al-Jady", "The Young Goat, the Arabic name for Polaris."],
+      ["Chinese", "Gōuchén 勾陈", "The Curved Array. Polaris is its first star, Gōuchén yī."],
+      ["Hindu", "Dhruva", "Polaris, named for a prince whose devotion earned him a fixed place in the sky."]
+    ],
+    science: "Polaris is a yellow supergiant and a pulsating Cepheid variable, roughly 430 light-years away. It sits less than a degree from the north celestial pole. That alignment is temporary. Earth's axis wobbles in a 26,000-year cycle called precession. Around 2800 BC, Thuban in Draco was the pole star, and in about 12,000 years Vega will be close to the pole.",
+    story: "Phoenician sailors were said to steer by the Little Bear, while Greek sailors used the brighter Great Bear." },
+  { id: "Cas", name: "Cassiopeia", meaning: "The Queen", tier: 1,
+    names: [
+      ["Greek", "Kassiópeia", "The vain queen of Aethiopia, chained to her throne."],
+      ["Arabic", "al-Kaff al-Khaḍīb", "The Henna-Stained Hand, its fingertips the bright stars of the W."],
+      ["Chinese", "Wángliáng 王良", "Wang Liang, a legendary charioteer, with his team of horses."]
+    ],
+    science: "In 1572 Tycho Brahe observed a new star in Cassiopeia. It was a supernova, and it helped overturn the idea that the heavens never change. Cassiopeia A, the remnant of another supernova whose light reached Earth around the 1680s, is about 11,000 light-years away and is the brightest radio source in the sky beyond the solar system.",
+    story: "Poseidon set Cassiopeia in the sky for boasting about her beauty. She circles the pole, so she spends half the night hanging upside down." },
+  { id: "Cyg", name: "Cygnus", meaning: "The Swan", tier: 1,
+    names: [
+      ["English", "Northern Cross", "Its brightest stars form a long cross along the Milky Way."],
+      ["Chinese", "Tiānjīn 天津", "The Celestial Ford, a crossing over the Silver River (the Milky Way). In the Qixi legend it is linked to the magpie bridge where the Weaver Girl and the Cowherd meet."],
+      ["Arabic", "al-Dajājah", "The Hen."],
+      ["Greek", "Kýknos", "A swan, often linked with Zeus in disguise."]
+    ],
+    science: "Deneb, the swan's tail, is one of the most luminous stars visible to the eye, tens of thousands of times brighter than the Sun. Its distance is uncertain, usually given as 1,500 to 2,600 light-years. Cygnus X-1, discovered in 1964, was the first X-ray source widely accepted as a black hole. NASA's Kepler telescope stared at a patch of Cygnus and Lyra from 2009 to 2013 and found thousands of exoplanets.",
+    story: "Deneb, Vega and Altair form the Summer Triangle. Albireo, the swan's head, is a colorful gold-and-blue double star in small telescopes." },
+  { id: "Lyr", name: "Lyra", meaning: "The Lyre", tier: 1,
+    names: [
+      ["Greek", "Lýra", "The lyre of Orpheus."],
+      ["Chinese", "Zhīnǚ 织女", "The Weaver Girl, the star Vega. She meets the Cowherd (Altair) across the Milky Way once a year at the Qixi festival."],
+      ["Japanese", "Orihime", "The weaving princess (Vega) of Tanabata, the Japanese form of the same legend."],
+      ["Arabic", "al-Nasr al-Wāqiʿ", "The Swooping Eagle, the source of the name Vega."]
+    ],
+    science: "Vega, 25 light-years away, served as the zero point of the stellar magnitude scale. In 1850 it became the first star other than the Sun to be photographed. In 1872 Henry Draper photographed its spectrum, another first for a star beyond the Sun. It spins so fast that its equator bulges. Epsilon Lyrae is the Double Double, two pairs of stars. The Ring Nebula (M57) is the glowing shell of gas thrown off by a dying Sun-like star.",
+    story: "Because of precession, Vega was the pole star about 14,000 years ago and will be again around the year 13,700." },
+  { id: "Sco", name: "Scorpius", meaning: "The Scorpion", tier: 1, zodiac: true,
+    names: [
+      ["Babylonian", "GIR.TAB", "The Scorpion. The figure goes back at least to Mesopotamian star lists."],
+      ["Māori", "Te Matau a Māui", "The fishhook of Māui, used to haul up the North Island. Antares (Rehua) is the bait."],
+      ["Hawaiian", "Ka Makau Nui o Māui", "Māui's great fishhook."],
+      ["Chinese", "Xīn 心", "The Heart (Antares), the heart of the Azure Dragon of the East."]
+    ],
+    science: "Antares is a red supergiant about 550 light-years away. Its name means rival of Ares (Mars), because the two can look alike in color. Many of Scorpius's bright stars belong to a young stellar association, the nearest region of recent massive-star birth. Scorpius X-1, found in 1962, was the first X-ray source discovered outside the solar system. M4, about 6,000 light-years away, is one of the closest globular clusters.",
+    story: "In Greek myth this is the scorpion that killed Orion. The two were placed on opposite sides of the sky." },
+  { id: "Leo", name: "Leo", meaning: "The Lion", tier: 1, zodiac: true,
+    names: [
+      ["Babylonian", "UR.GU.LA", "The Great Lion."],
+      ["Hindu", "Simha", "The Lion, the zodiac sign."],
+      ["Chinese", "Xuānyuán 轩辕", "The Yellow Emperor, a long chain of stars that includes Regulus."],
+      ["Arabic", "al-Asad", "The Lion."]
+    ],
+    science: "Regulus, about 79 light-years away, spins so fast, once every 16 hours or so, that it is noticeably flattened. It lies almost exactly on the ecliptic, so the Moon often passes in front of it. The Leonid meteors, debris from Comet Tempel–Tuttle, produced a famous storm in 1833 that helped prompt the scientific study of meteors. The Leo Triplet is a group of three spiral galaxies about 35 million light-years away.",
+    story: "The Greeks identified it with the Nemean lion killed by Heracles as the first of his twelve labors." },
+  { id: "Tau", name: "Taurus", meaning: "The Bull", tier: 1, zodiac: true,
+    names: [
+      ["Babylonian", "GU4.AN.NA", "The Bull of Heaven, the creature Gilgamesh and Enkidu slay in the epic."],
+      ["Japanese", "Subaru", "The Pleiades, the 'gathered' stars. The car company's logo shows them."],
+      ["Māori", "Matariki", "The Pleiades. Their dawn rising marks the Māori new year, a national holiday in Aotearoa New Zealand since 2022."],
+      ["Hindu", "Krittika / Rohini", "Krittika is the Pleiades. Rohini, the red one, is Aldebaran. Both are lunar mansions."],
+      ["Arabic", "al-Thurayyā / al-Dabarān", "The Pleiades, and Aldebaran, the Follower, which trails them across the sky."]
+    ],
+    science: "Aldebaran, the bull's eye, is an orange giant about 65 light-years away. It sits in front of the V-shaped Hyades cluster, about 150 light-years away, and is not a member of it. The Pleiades are a young cluster about 440 light-years away. The Crab Nebula (M1) is the debris of a supernova recorded by Chinese astronomers in 1054. At its heart is a pulsar spinning 30 times a second.",
+    story: "Many cultures tell of the Pleiades as a group of sisters, and many count only six visible stars and explain a missing seventh." },
+  { id: "Gem", name: "Gemini", meaning: "The Twins", tier: 1, zodiac: true,
+    names: [
+      ["Babylonian", "MAŠ.TAB.BA.GAL.GAL", "The Great Twins."],
+      ["Hindu", "Mithuna / Punarvasu", "Mithuna is the zodiac sign. Punarvasu is the lunar mansion of Castor and Pollux."],
+      ["Chinese", "Jǐng 井", "The Well, one of the 28 lunar mansions."],
+      ["Arabic", "al-Tawʾamān", "The Twins."]
+    ],
+    science: "Castor looks like one star but is a system of six: three pairs of stars about 51 light-years away. Pollux, an orange giant 34 light-years away, has a confirmed planet. William Herschel found Uranus near the feet of the twins in 1781, and Clyde Tombaugh discovered Pluto in Gemini in 1930. The Geminid meteors in December come from the rocky asteroid 3200 Phaethon rather than a comet.",
+    story: "Castor and Pollux were the twin brothers of Helen of Troy and the patrons of sailors." },
+  { id: "Cru", name: "Crux", meaning: "The Southern Cross", tier: 1,
+    names: [
+      ["Māori", "Māhutonga / Te Punga", "Te Punga is the anchor of the great canoe of Tamarēreti, the Milky Way."],
+      ["Aboriginal Australian", "Head of the Emu in the Sky", "For many groups, the dark Coalsack next to the Cross is the head of an emu whose neck and body are dark dust lanes in the Milky Way."],
+      ["Boorong", "Bunya", "A ring-tail possum, the top star of the Cross. The dark Coalsack beside it was Tchingal, the emu."],
+      ["Greek", "Part of Centaurus", "Ptolemy listed these stars as the centaur's hind legs. European navigators made the Cross a separate figure in the 1500s."]
+    ],
+    science: "Crux is the smallest of the 88 constellations, about 68 square degrees. Acrux, its brightest star, is a multiple-star system about 320 light-years away. The Jewel Box (NGC 4755) is a young open cluster about 6,400 light-years away. The Coalsack, about 600 light-years away, is a dark nebula of dust blocking the light of the Milky Way behind it.",
+    story: "The Cross appears on the flags of Australia, New Zealand, Brazil, Samoa and Papua New Guinea. Its long axis points roughly toward the south celestial pole." },
+  { id: "Sgr", name: "Sagittarius", meaning: "The Archer", tier: 1, zodiac: true,
+    names: [
+      ["English", "The Teapot", "The modern asterism of its brightest stars."],
+      ["Babylonian", "Pabilsag", "A Mesopotamian archer god, drawn as a winged centaur."],
+      ["Chinese", "Dǒu 斗", "The Southern Dipper, one of the 28 lunar mansions."],
+      ["Hindu", "Dhanu", "The Bow, the zodiac sign."]
+    ],
+    science: "The center of the Milky Way lies in Sagittarius, about 26,000 light-years away. At the center is Sagittarius A*, a black hole of about 4 million solar masses. Tracking stars orbiting it earned the 2020 Nobel Prize in Physics, and the Event Horizon Telescope imaged its shadow in 2022. The Lagoon (M8) and Trifid (M20) nebulae are bright star-forming regions in this direction.",
+    story: "The 'steam' rising from the Teapot's spout is the brightest part of the Milky Way." },
+  { id: "Aql", name: "Aquila", meaning: "The Eagle", tier: 2,
+    names: [
+      ["Chinese", "Niúláng 牛郎", "The Cowherd, the star Altair, who is separated from the Weaver Girl (Vega) by the Milky Way."],
+      ["Japanese", "Hikoboshi", "The cowherd of the Tanabata festival."],
+      ["Arabic", "al-Nasr al-Ṭāʾir", "The Flying Eagle, the source of the name Altair."],
+      ["Hindu", "Shravana", "The lunar mansion marked by Altair."]
+    ],
+    science: "Altair, just under 17 light-years away, rotates in about 9 hours, so it is visibly squashed. In 2007 it became the first ordinary main-sequence star other than the Sun to have its surface imaged, using the CHARA interferometer. Its poles are measurably hotter than its equator.",
+    story: "In Greek myth the eagle carried Zeus's thunderbolts and carried off Ganymede to be cupbearer to the gods." },
+  { id: "CMa", name: "Canis Major", meaning: "The Great Dog", tier: 2,
+    names: [
+      ["Ancient Egypt", "Sopdet (Sothis)", "Sirius, whose first dawn appearance after months hidden in sunlight signaled the coming Nile flood and the new year."],
+      ["Chinese", "Tiānláng 天狼", "The Celestial Wolf (Sirius)."],
+      ["Greek", "Seirios", "The Scorching One. Its dawn rising in summer gave us the 'dog days'."],
+      ["Arabic", "al-Shiʿrā", "The ancestor of the name Sirius in many languages."]
+    ],
+    science: "Sirius, 8.6 light-years away, is the brightest star in the night sky. In 1844 Friedrich Bessel noticed it wobbling and predicted an unseen companion. Alvan Graham Clark spotted Sirius B in 1862. It turned out to be a white dwarf, roughly Earth-sized but about as massive as the Sun, one of the first such stars known.",
+    story: "Canis Major is one of Orion's hunting dogs. Orion's belt points down and to the left toward Sirius." },
+  { id: "Peg", name: "Pegasus", meaning: "The Winged Horse", tier: 2,
+    names: [
+      ["Babylonian", "AŠ.IKU", "The Field, the Great Square of Pegasus."],
+      ["Chinese", "Shì 室 and Bì 壁", "The Encampment and the Wall, two lunar mansions formed from the Great Square."],
+      ["Arabic", "al-Faras al-Aʿẓam", "The Greater Horse."]
+    ],
+    science: "In 1995 Michel Mayor and Didier Queloz discovered 51 Pegasi b, the first planet found orbiting a Sun-like star. It is a 'hot Jupiter' that circles its star every 4.2 days, and the discovery earned the 2019 Nobel Prize in Physics. The Great Square shares its northeast corner star, Alpheratz, with Andromeda.",
+    story: "Pegasus sprang from the neck of Medusa when Perseus beheaded her." },
+  { id: "And", name: "Andromeda", meaning: "The Chained Princess", tier: 2,
+    names: [
+      ["Greek", "Andromédē", "The princess chained to a rock as a sacrifice to a sea monster."],
+      ["Arabic", "al-Marʾa al-Musalsala", "The Chained Woman."],
+      ["Chinese", "Kuí 奎", "The Legs, a lunar mansion spanning Andromeda and Pisces."]
+    ],
+    science: "The Andromeda Galaxy (M31), about 2.5 million light-years away, is the most distant object easily seen with the naked eye. The Persian astronomer al-Ṣūfī recorded it as a 'little cloud' in 964. In the 1920s Edwin Hubble measured Cepheid variable stars in it and showed it is a separate galaxy far outside the Milky Way. A collision with the Milky Way was long predicted for about 4.5 billion years from now, but a 2025 study of 100,000 simulations put the chance of a merger within 10 billion years at only about 50 percent.",
+    story: "Perseus rescued Andromeda from the sea monster, and the whole family, Cepheus, Cassiopeia, Andromeda and Perseus, share this part of the sky." },
+  { id: "Per", name: "Perseus", meaning: "The Hero", tier: 2,
+    names: [
+      ["Greek", "Perseús", "The hero who killed Medusa."],
+      ["Arabic", "Raʾs al-Ghūl", "The Demon's Head, the star Algol, seen as the Gorgon's head in the hero's hand."],
+      ["Chinese", "Dàlíng 大陵", "The Great Mausoleum, which includes Algol."]
+    ],
+    science: "Algol is an eclipsing binary: every 2.87 days the dimmer star passes in front of the brighter one and Algol fades for a few hours. In 1783 John Goodricke, a deaf amateur astronomer, proposed the eclipse explanation. The Perseid meteors each August are dust from Comet Swift–Tuttle. The Double Cluster is a pair of young star clusters about 7,500 light-years away.",
+    story: "Algol's regular winking may be why so many cultures associated it with demons or evil." },
+  { id: "Boo", name: "Boötes", meaning: "The Herdsman", tier: 2,
+    names: [
+      ["Greek", "Arktouros", "Bear Guardian (Arcturus), the star that follows the Great Bear."],
+      ["Hawaiian", "Hōkūleʻa", "The Star of Gladness (Arcturus), a zenith star that passes overhead in Hawaiʻi. Navigators used it to find home, and the voyaging canoe Hōkūleʻa is named for it."],
+      ["Chinese", "Dàjiǎo 大角", "The Great Horn (Arcturus), a horn of the Azure Dragon."],
+      ["Mi'kmaq", "Four of the bird hunters", "Pigeon, Blue Jay and two owls continue the chase of the bear Muin."]
+    ],
+    science: "Arcturus is an orange giant 37 light-years away and the brightest star in the northern celestial hemisphere. It moves unusually fast across the sky and may belong to a stream of stars captured from a smaller galaxy. Boötes also contains the Boötes Void, a region about 330 million light-years across with very few galaxies.",
+    story: "The 1933 Chicago World's Fair opened with light from Arcturus: observatory telescopes focused it onto photocells that switched on the fairground lights. The star was chosen because its light was then thought to have left Arcturus around the time of the city's previous fair, in 1893." },
+  { id: "Vir", name: "Virgo", meaning: "The Maiden", tier: 2, zodiac: true,
+    names: [
+      ["Babylonian", "AB.SIN", "The Furrow. Spica was an ear of grain held by the goddess Shala."],
+      ["Hindu", "Kanya / Chitra", "Kanya, the Maiden, is the zodiac sign. Chitra, the bright one, is Spica."],
+      ["Chinese", "Jiǎo 角", "The Horn, the first lunar mansion, marked by Spica."]
+    ],
+    science: "Virgo is the second-largest constellation. Spica is a close pair of hot blue stars about 250 light-years away whose gravity distorts each other's shapes. Beyond it lies the Virgo Cluster, more than a thousand galaxies about 54 million light-years away. Its giant galaxy M87 hosts the black hole that in 2019 became the first ever imaged.",
+    story: "Hipparchus may have discovered precession around 130 BC by comparing his measurements of Spica with older records." },
+  { id: "Aur", name: "Auriga", meaning: "The Charioteer", tier: 2,
+    names: [
+      ["Babylonian", "GAM", "The Crook or Scimitar."],
+      ["Chinese", "Wǔchē 五车", "The Five Chariots."],
+      ["Hindu", "Brahmahridaya", "The Heart of Brahma (Capella)."],
+      ["Latin", "Capella", "The Little She-Goat, carried by the charioteer with her kids nearby."]
+    ],
+    science: "Capella, 43 light-years away, is actually two yellow giant stars orbiting each other every 104 days. Epsilon Aurigae is an eclipsing binary with a 27-year period. Each eclipse lasts nearly two years because a huge dark disk around one star passes in front of the other.",
+    story: "The Greeks linked Auriga with Erichthonius, a legendary king of Athens credited with inventing the four-horse chariot." },
+  { id: "Cen", name: "Centaurus", meaning: "The Centaur", tier: 2,
+    names: [
+      ["Greek", "Kentauros", "Often identified with Chiron, the wise centaur."],
+      ["Boorong", "Berm-berm-gle", "Two red-kneed dotterels (Alpha and Beta Centauri), recorded from the Boorong of northwestern Victoria in 1857."],
+      ["Chinese", "Nánmén 南门", "The Southern Gate (Alpha Centauri)."],
+      ["Arabic", "Rijl al-Qanṭūris", "The Foot of the Centaur, the origin of the name Rigil Kentaurus."]
+    ],
+    science: "Alpha Centauri is the nearest star system, 4.37 light-years away. Its dim red companion Proxima, 4.24 light-years away, has at least one Earth-mass planet in its habitable zone, found in 2016. Omega Centauri, with millions of stars, is the largest globular cluster in the Milky Way and may be the stripped core of a small galaxy we absorbed. Centaurus A is a nearby radio galaxy with jets driven by a supermassive black hole.",
+    story: "Alpha and Beta Centauri are the Pointers. They lead the eye to the Southern Cross." },
+  { id: "Car", name: "Carina", meaning: "The Keel", tier: 2,
+    names: [
+      ["Greek", "Argo Navis (part)", "The ship of Jason and the Argonauts. Lacaille split it into Carina, Puppis and Vela in the 1750s."],
+      ["Chinese", "Nánjí Lǎorén 南极老人", "The Old Man of the South Pole (Canopus), the star of longevity, Shòuxīng."],
+      ["Hindu", "Agastya", "The sage Agastya (Canopus)."],
+      ["Arabic", "Suhayl", "Canopus, a famous southern star in Arabic poetry and navigation."],
+      ["Boorong", "War", "The crow (Canopus). The Boorong also recorded Eta Carinae's great outburst in their sky lore."]
+    ],
+    science: "Canopus, the second-brightest star in the night sky, is a giant about 310 light-years away. Spacecraft have long used it as a guide star for orientation. Eta Carinae, about 7,500 light-years away, is a pair of very massive stars. In the 1840s it erupted and briefly became one of the brightest stars in the sky. It is wrapped in the Carina Nebula, one of the largest star-forming regions in our galaxy.",
+    story: "Old star catalogs list Carina's stars under the giant constellation Argo, so its stars' Greek letters skip around." },
+  { id: "CrB", name: "Corona Borealis", meaning: "The Northern Crown", tier: 2,
+    names: [
+      ["Greek", "Stéphanos", "The crown Dionysus gave to Ariadne."],
+      ["Arabic", "al-Fakkah", "The Broken (or Separated) Ring. Its brightest star Alphecca is 'the bright one of al-Fakkah'."],
+      ["Chinese", "Guànsuǒ 贯索", "The Coiled Thong, a cord for stringing coins and also read as a prison."],
+      ["Shawnee", "The Celestial Sisters", "Star maidens who came down to dance. One became the wife of the hunter White Hawk."]
+    ],
+    science: "T Coronae Borealis is a recurrent nova. A white dwarf pulls gas from a red giant companion until it ignites in a thermonuclear flash. It brightened to naked-eye visibility in 1866 and 1946, and signs of another outburst made it a watched star in the 2020s.",
+    story: "The semicircle of seven stars is small but distinctive, sitting between Arcturus and Vega." },
+  { id: "Dra", name: "Draco", meaning: "The Dragon", tier: 2,
+    names: [
+      ["Greek", "Drákōn", "Ladon, the dragon guarding the golden apples of the Hesperides."],
+      ["Arabic", "al-ʿAwāʾidh", "The Mother Camels, four stars of the dragon's head."],
+      ["Chinese", "Zǐwēi walls 紫微", "Its stars form part of the walls of the Purple Forbidden Enclosure around the pole."]
+    ],
+    science: "Thuban was the pole star around 2800 BC, when it lay just 0.1° from the pole, closer than Polaris is today. Precession has since carried the pole toward Polaris. The Cat's Eye Nebula (NGC 6543) is a planetary nebula with intricate shells of gas thrown off by a dying star. The Draconid meteors come from Comet Giacobini–Zinner.",
+    story: "Draco winds between the two bears, fitting for a dragon that guards the pole." },
+  { id: "Her", name: "Hercules", meaning: "The Hero", tier: 2,
+    names: [
+      ["Greek (early)", "Engónasin", "The Kneeler, a figure Aratus could not identify."],
+      ["Greek", "Hēraklês", "Later identified with the hero of the twelve labors."],
+      ["Chinese", "Tiānshì 天市", "Its stars help form the walls of the Heavenly Market Enclosure."]
+    ],
+    science: "M13, the Great Globular Cluster, holds several hundred thousand stars about 22,000 light-years away. In 1974 the Arecibo radio telescope beamed a coded message toward it. It will take roughly 25,000 years to arrive. The Sun's motion through the galaxy is carrying the solar system toward a point near Hercules and Lyra, the solar apex.",
+    story: "Hercules appears upside down in Greek star maps, kneeling with one foot on Draco's head." },
+  { id: "Cnc", name: "Cancer", meaning: "The Crab", tier: 2, zodiac: true,
+    names: [
+      ["Babylonian", "AL.LUL", "The Crab."],
+      ["Chinese", "Guǐ 鬼 / Jīshī 积尸", "The Ghost mansion. The Beehive cluster is Jishi, the Piled-up Corpses."],
+      ["Hindu", "Karka / Pushya", "Karka, the Crab, is the zodiac sign. Pushya, the Nourisher, is a lunar mansion."]
+    ],
+    science: "The Beehive Cluster (M44), about 600 light-years away, is a naked-eye haze of hundreds of stars, and Galileo was the first to resolve it into individual stars. The star 55 Cancri hosts five known planets. The Tropic of Cancer is named because the Sun was in Cancer at the June solstice about 2,000 years ago. Because of precession, it is now on the Taurus–Gemini border.",
+    story: "In Greek myth, Hera sent the crab to distract Heracles as he fought the Hydra, and it was crushed underfoot." },
+  { id: "Ari", name: "Aries", meaning: "The Ram", tier: 2, zodiac: true,
+    names: [
+      ["Babylonian", "LÚ.ḪUN.GÁ", "The Hired Man, a farm laborer, the last constellation of the agricultural year."],
+      ["Hindu", "Mesha / Ashvini", "Mesha, the Ram, is the zodiac sign. Ashvini, the horse-headed twins, is the first lunar mansion."],
+      ["Chinese", "Lóu 娄", "The Bond, one of the 28 lunar mansions."]
+    ],
+    science: "About 2,000 years ago the Sun crossed the celestial equator in Aries at the March equinox, which is why that point is still called the First Point of Aries. Precession has since moved it into Pisces. Hamal, the brightest star, is an orange giant about 66 light-years away.",
+    story: "The Greeks saw the ram with the Golden Fleece sought by Jason and the Argonauts." },
+  { id: "Cap", name: "Capricornus", meaning: "The Sea-Goat", tier: 2, zodiac: true,
+    names: [
+      ["Babylonian", "SUḪUR.MAŠ", "The Goat-Fish, a symbol of the god Ea."],
+      ["Hindu", "Makara", "A sea creature, the zodiac sign."],
+      ["Chinese", "Niú 牛", "The Ox, one of the 28 lunar mansions."]
+    ],
+    science: "The Tropic of Capricorn takes its name from when the Sun stood in Capricornus at the December solstice about 2,000 years ago. Because of precession, it is now in Sagittarius. Alpha Capricorni is a naked-eye pair of stars that just happen to line up. One is about 690 light-years away and the other about 100.",
+    story: "The goat-fish is one of the oldest figures in the sky, appearing on Babylonian boundary stones." },
+  { id: "Aqr", name: "Aquarius", meaning: "The Water-Bearer", tier: 2, zodiac: true,
+    names: [
+      ["Babylonian", "GU.LA", "The Great One, the god Ea, pouring water from a jar."],
+      ["Hindu", "Kumbha", "The Water Pot, the zodiac sign."],
+      ["Chinese", "Xū 虚 and Wēi 危", "Emptiness and Rooftop, two of the 28 lunar mansions."]
+    ],
+    science: "The Helix Nebula, about 650 light-years away, is one of the nearest planetary nebulae. TRAPPIST-1, a cool red dwarf about 40 light-years away in Aquarius, has seven roughly Earth-sized planets, several in its habitable zone. The Eta Aquariid meteors each May are debris from Halley's Comet.",
+    story: "This region of faint stars is sometimes called the Sea, as it is crowded with water figures: Pisces, Cetus, Piscis Austrinus, Delphinus and Eridanus." },
+  { id: "Lib", name: "Libra", meaning: "The Scales", tier: 2, zodiac: true,
+    names: [
+      ["Babylonian", "ZI.BA.AN.NA", "The Scales, sometimes the scales of judgment of the sun god Shamash."],
+      ["Greek", "Chēlaí", "The Claws of the scorpion. Its stars Zubenelgenubi and Zubeneschamali are Arabic for the southern and northern claw."],
+      ["Chinese", "Dǐ 氐", "The Root, one of the 28 lunar mansions."],
+      ["Hindu", "Tula", "The Balance, the zodiac sign."]
+    ],
+    science: "Libra is the only zodiac constellation that is not a living creature. Gliese 581, a red dwarf about 20 light-years away, hosts a well-studied planetary system.",
+    story: "Babylonian astronomers already saw scales here, but Greek writers, Ptolemy among them, treated these stars as the scorpion's claws. The balance became established among the Romans in the 1st century BC, possibly because the autumn equinox, when day and night are balanced, once fell here." },
+  { id: "Oph", name: "Ophiuchus", meaning: "The Serpent-Bearer", tier: 2,
+    names: [
+      ["Greek", "Ophioûkhos", "Asclepius, god of medicine, holding a serpent."],
+      ["Chinese", "Tiānshì walls 天市", "Its stars help form the Heavenly Market Enclosure."],
+      ["Arabic", "al-Ḥawwāʾ", "The Snake Charmer."]
+    ],
+    science: "The Sun passes through Ophiuchus from late November to mid-December, so it is sometimes called the thirteenth zodiac constellation. In 1604 Kepler observed a supernova here, the last supernova in our galaxy seen with the naked eye. Barnard's Star, about 6 light-years away, moves across the sky faster than any other star.",
+    story: "Ophiuchus grips Serpens, which the IAU splits into two pieces, Serpens Caput and Serpens Cauda, on either side of him. It is the only constellation split in two." },
+  { id: "Crv", name: "Corvus", meaning: "The Crow", tier: 3,
+    names: [
+      ["Babylonian", "UGA.MUŠEN", "The Raven, perched on the serpent's tail."],
+      ["Chinese", "Zhěn 轸", "The Chariot, one of the 28 lunar mansions."],
+      ["Hindu", "Hasta", "The Hand, a lunar mansion."]
+    ],
+    science: "The Antennae Galaxies (NGC 4038/4039) are two colliding spirals about 45 million light-years away. Long tails of stars flung out by the collision look like insect antennae, and the collision is setting off bursts of star formation.",
+    story: "In the Greek tale, Apollo sent the crow for water. It dawdled, lied about the delay and was banished to the sky next to the cup, Crater, which it can never drink from." },
+  { id: "Hya", name: "Hydra", meaning: "The Water Snake", tier: 3,
+    names: [
+      ["Greek", "Hýdra", "The many-headed serpent killed by Heracles."],
+      ["Chinese", "Liǔ 柳, Xīng 星, Zhāng 张", "The Willow, the Star and the Extended Net, three of the 28 lunar mansions along its length."],
+      ["Hindu", "Ashlesha", "The Entwiner, the lunar mansion of the serpent's head."],
+      ["Arabic", "Alphard (al-Fard)", "The Solitary One, its lone bright star."]
+    ],
+    science: "Hydra is the largest constellation, about 1,303 square degrees, and stretches more than 100 degrees across the sky. Alphard is an orange giant about 180 light-years away. The Southern Pinwheel galaxy (M83), about 15 million light-years away, has hosted several recorded supernovae.",
+    story: "It takes Hydra more than six hours to fully rise." },
+  { id: "Del", name: "Delphinus", meaning: "The Dolphin", tier: 3,
+    names: [
+      ["English", "Job's Coffin", "A traditional name for its diamond of four stars."],
+      ["Chinese", "Hùguā 瓠瓜", "The Gourd."],
+      ["Greek", "Delphís", "The dolphin of Poseidon, or the one that saved the poet Arion."]
+    ],
+    science: "Delphinus is small and faint, but in 2013 a classical nova, V339 Delphini, became visible in binoculars and was studied closely as it ejected gas.",
+    story: "Its stars Sualocin and Rotanev appeared in the Palermo star catalog of 1814. Read backward they spell Nicolaus Venator, the Latin name of the astronomer Niccolò Cacciatore, who quietly named them after himself." },
+  { id: "Eri", name: "Eridanus", meaning: "The River", tier: 3,
+    names: [
+      ["Greek", "Ēridanós", "A mythical river, often linked with the Po or the Nile."],
+      ["Arabic", "Ākhir al-Nahr", "The End of the River, the origin of the name Achernar."],
+      ["Chinese", "Tiānyuàn 天苑", "The Celestial Meadows."]
+    ],
+    science: "Achernar is one of the fastest-spinning stars known, so flattened by its spin that it is far wider at the equator than from pole to pole. Epsilon Eridani, 10.5 light-years away, is a young Sun-like star with a debris disk. In 1960 Project Ozma, the first modern search for alien radio signals, listened to it and Tau Ceti.",
+    story: "The river winds from near Rigel in Orion far down into the southern sky, the sixth-largest constellation." },
+  { id: "CMi", name: "Canis Minor", meaning: "The Lesser Dog", tier: 3,
+    names: [
+      ["Greek", "Prokýōn", "Before the Dog (Procyon), which rises just ahead of Sirius."],
+      ["Chinese", "Nánhé 南河", "The Southern River."],
+      ["Ojibwe", "Hand of the Wintermaker", "Procyon marks one outstretched hand of Biboonkeonini."]
+    ],
+    science: "Procyon, 11.5 light-years away, is one of the Sun's near neighbors. Like Sirius, it has a white dwarf companion that was first detected by its gravitational tug before it was seen. Procyon, Sirius and Betelgeuse form the Winter Triangle.",
+    story: "The constellation is essentially two stars, Procyon and Gomeisa." }
+];
+
+/* ======================================================================
+   Helpers
+   ====================================================================== */
+const $ = id => document.getElementById(id);
+const fmt = n => n.toLocaleString("en-US");
+const fmtLat = d => `${Math.abs(d).toFixed(2)}° ${d >= 0 ? "N" : "S"}`;
+const fmtLon = d => `${Math.abs(d).toFixed(2)}° ${d >= 0 ? "E" : "W"}`;
+const fmtRA = deg => { const h = ((deg % 360) + 360) % 360 / 15; let hh = Math.floor(h), mm = Math.round((h - hh) * 60); if (mm === 60) { hh = (hh + 1) % 24; mm = 0; } return `${hh}h ${String(mm).padStart(2, "0")}m`; };
+const fmtDec = d => `${d >= 0 ? "+" : "−"}${Math.abs(d).toFixed(1)}°`;
+const vec = (lat, lon, r = 1) => {
+  const p = lat * D2R, l = lon * D2R;
+  return new THREE.Vector3(r * Math.cos(p) * Math.cos(l), r * Math.sin(p), -r * Math.cos(p) * Math.sin(l));
+};
+const toLatLon = v => { const n = v.clone().normalize(); return { lat: Math.asin(Math.max(-1, Math.min(1, n.y))) / D2R, lon: Math.atan2(-n.z, n.x) / D2R }; };
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+const ordinal = n => n + (["th", "st", "nd", "rd"][(n % 100 - 20) % 10] || ["th", "st", "nd", "rd"][n % 100] || "th");
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const wrap180 = d => { d = ((d + 180) % 360 + 360) % 360 - 180; return d; };
+
+const srcList = f => `<ol class="src">${(SOURCES[f.name] || []).map(([t, u]) => `<li><a href="${u}" target="_blank" rel="noopener">${t}</a></li>`).join("")}</ol>`;
+const moonFull = f => f.site ? 10 : f.linear ? Math.min(f.size / 4, 100) : Math.min(f.size / 2, 300);
+const moonSize = f => f.site ? "Landing site" : f.linear ? `${fmt(f.size)} km long` : `${fmt(f.size)} km across`;
+
+/* ======================================================================
+   Renderer + shared overlay helpers
+   ====================================================================== */
+const stage = $("stage");
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.setClearColor(0x0a0c13, 1);
+stage.appendChild(renderer.domElement);
+const canvas = renderer.domElement;
+let W = 1, H = 1;
+
+const lineOf = (pts, color, opacity, dashed) => {
+  const g = new THREE.BufferGeometry().setFromPoints(pts);
+  const m = dashed ? new THREE.LineDashedMaterial({ color, dashSize: dashed, gapSize: dashed * 0.6, transparent: true, opacity }) : new THREE.LineBasicMaterial({ color, transparent: true, opacity });
+  const l = new THREE.Line(g, m);
+  if (dashed) l.computeLineDistances();
+  return l;
+};
+const slerpArc = (a, b, r, lift) => {
+  const va = a.clone().normalize(), vb = b.clone().normalize();
+  const ang = va.angleTo(vb), n = Math.max(8, Math.ceil(ang / D2R)), pts = [], s = Math.sin(ang) || 1;
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    const p = va.clone().multiplyScalar(Math.sin((1 - t) * ang) / s).add(vb.clone().multiplyScalar(Math.sin(t * ang) / s)).normalize();
+    pts.push(p.multiplyScalar(r * (1 + (lift ? Math.sin(t * Math.PI) * Math.min(ang, 1) * lift : 0))));
+  }
+  return pts;
+};
+const circleOn = (center, ang, r) => {
+  const c = center.clone().normalize();
+  const u = new THREE.Vector3().crossVectors(c, Math.abs(c.y) > 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0)).normalize();
+  const w = new THREE.Vector3().crossVectors(c, u), pts = [];
+  for (let i = 0; i <= 96; i++) {
+    const t = i / 96 * Math.PI * 2;
+    pts.push(c.clone().multiplyScalar(Math.cos(ang)).add(u.clone().multiplyScalar(Math.cos(t) * Math.sin(ang))).add(w.clone().multiplyScalar(Math.sin(t) * Math.sin(ang))).multiplyScalar(r));
+  }
+  return pts;
+};
+const dot = color => new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), new THREE.MeshBasicMaterial({ color }));
+const panelBox = () => {
+  if ($("notes").hidden) return { x: 0, y: 0 };
+  return innerWidth > 760 ? { x: 420, y: 0 } : { x: 0, y: Math.round(H * 0.56) };
+};
+
+/* ======================================================================
+   MOON MODE
+   ====================================================================== */
+const moonM = (() => {
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(36, 1, 0.01, 200);
+  scene.add(camera);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.32));
+  const sun = new THREE.DirectionalLight(0xfff6e8, 0.95);
+  sun.position.set(-1.2, 0.9, 2.2); camera.add(sun);
+  const body = new THREE.Group(); body.rotation.order = "XYZ"; scene.add(body);
+  const globe = new THREE.Mesh(new THREE.SphereGeometry(1, 160, 96), new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 0 }));
+  body.add(globe);
+  // background stars (decorative)
+  { const n = 1400, pos = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) { const v = new THREE.Vector3(Math.random() - .5, Math.random() - .5, Math.random() - .5).normalize().multiplyScalar(60 + Math.random() * 30); pos.set([v.x, v.y, v.z], i * 3); }
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xbfc4d6, size: 1.4, sizeAttenuation: false, transparent: true, opacity: 0.7 }))); }
+  const grid = new THREE.Group(); grid.visible = false; body.add(grid);
+  for (let lat = -60; lat <= 60; lat += 30) { const p = []; for (let lon = -180; lon <= 180; lon += 3) p.push(vec(lat, lon, 1.002)); grid.add(lineOf(p, 0x86cdf5, lat ? 0.22 : 0.45)); }
+  for (let lon = -180; lon < 180; lon += 30) { const p = []; for (let lat = -90; lat <= 90; lat += 3) p.push(vec(lat, lon, 1.002)); grid.add(lineOf(p, 0x86cdf5, lon ? 0.22 : 0.45)); }
+  const marks = new THREE.Group(); body.add(marks);
+  const pin = dot(0x86cdf5), ans = dot(0xe6b968); pin.visible = ans.visible = false; body.add(pin, ans);
+
+  const view = { yaw: -Math.PI / 2, pitch: 0, dist: 3, offX: 0, offY: 0 };
+  const fit = () => {
+    const p = panelBox(), aw = W - p.x, ah = H - p.y, tv = Math.tan(camera.fov * D2R / 2);
+    const half = Math.atan(Math.min(tv * ah / H, tv * aw / H));
+    return 1.1 / Math.sin(half * (innerWidth <= 760 && !p.y ? 0.82 : 1));
+  };
+  const faceOf = v => { const { lat, lon } = toLatLon(v); return { yaw: -Math.PI / 2 - lon * D2R, pitch: lat * D2R }; };
+  let label = null;
+
+  return {
+    id: "moon", scene, camera, view, ready: false, pool: MOON, grid,
+    brand: "Selenographer", unit: "Plate", legend: "the feature",
+    help: "Drag to turn the Moon, scroll or pinch to zoom. Click the surface to drop your pin, then lock it in.",
+    home: () => ({ yaw: -Math.PI / 2, pitch: 0, dist: fit(), offX: 0, offY: 0 }),
+    far: () => ({ yaw: Math.PI / 2, pitch: 0, dist: fit() }),
+    apply(now, state) {
+      body.rotation.set(view.pitch, view.yaw, 0);
+      camera.position.set(0, 0, view.dist); camera.lookAt(0, 0, 0);
+      if (view.offX || view.offY) camera.setViewOffset(W, H, view.offX, view.offY, W, H); else camera.clearViewOffset();
+      const s = Math.max(0.14, (view.dist - 1) / 2) * 0.014;
+      pin.scale.setScalar(s); ans.scale.setScalar(s * (1 + (state === "revealed" && !reduced ? 0.25 * Math.sin(now / 260) : 0)));
+    },
+    drag(dx, dy) {
+      const k = (view.dist - 1) * 1.7 / H;
+      view.yaw += dx * k; view.pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, view.pitch + dy * k));
+    },
+    zoom(f) { view.dist = Math.max(1.12, Math.min(fit() * 1.6, 1 + (view.dist - 1) * f)); },
+    arrow(dx, dy) { const k = 0.12 * (view.dist - 1) / 2; view.yaw += dx * k; view.pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, view.pitch + dy * k)); },
+    pick(ray) { const hit = ray.intersectObject(globe)[0]; return hit ? body.worldToLocal(hit.point.clone()).normalize() : null; },
+    readout(v, tag) { const { lat, lon } = toLatLon(v); return `${tag} <span>${fmtLat(lat)} · ${fmtLon(lon)}</span>`; },
+    setPin(v) { if (!v) { pin.visible = false; return; } pin.position.copy(v.clone().multiplyScalar(1.004)); pin.visible = true; },
+    clear() { pin.visible = ans.visible = false; while (marks.children.length) marks.children.pop().geometry.dispose(); },
+    chips(f) {
+      const c = [f.kind, moonSize(f)].filter((x, i, a) => a.indexOf(x) === i).map(x => `<span class="chip">${x}</span>`);
+      if (f.far) c.push(`<span class="chip far">Far side</span>`);
+      if (f.polar) c.push(`<span class="chip far">Polar</span>`);
+      return c.join("");
+    },
+    score(f, gv) {
+      const tv = vec(f.lat, f.lon), ang = gv.angleTo(tv), d = ang * R_KM, r = moonFull(f);
+      const pts = d <= r ? MAX : Math.round(MAX * Math.exp(-(d - r) / 600));
+      const text = d <= r ? (f.site ? `${fmt(Math.round(d))} km from the site` : `Inside the ${f.kind.toLowerCase()}, ${fmt(Math.round(d))} km from its center`) : `${fmt(Math.round(d))} km away`;
+      return { pts, d, text, log: `${fmt(Math.round(d))} km`, tv, ang, inside: d <= r };
+    },
+    reveal(f, gv, res) {
+      ans.position.copy(res.tv.clone().multiplyScalar(1.004)); ans.visible = true;
+      const r = moonFull(f) / R_KM;
+      if (!f.site) marks.add(lineOf(circleOn(res.tv, r, 1.003), 0xe6b968, 0.9));
+      marks.add(lineOf(circleOn(res.tv, Math.max(r, 0.02) + 0.02, 1.003), 0xe6b968, 0.35));
+      if (res.ang > 0.004) marks.add(lineOf(slerpArc(gv, res.tv, 1.004, 0.06), 0xebe6da, 1, 0.025));
+      const mid = gv.clone().add(res.tv), F = fit();
+      return { ...faceOf(mid.lengthSq() > 1e-4 ? mid : res.tv), dist: Math.max(1.35, Math.min(F, F * (0.42 + res.ang / 2 / 1.1))) };
+    },
+    notes(f) {
+      return {
+        kind: `${f.kind} · ${f.far ? "Far side" : f.polar ? "South pole" : "Near side"}`,
+        alt: f.alt || "",
+        facts: [["Position", `${fmtLat(f.lat)}, ${fmtLon(f.lon)}`, true], ["Size", moonSize(f), true], ["Named", f.named]],
+        prose: [["The name", `<p>${f.origin}</p>`], ["The science", `<p>${f.science}</p>`], ["The story", `<p>${f.story}</p>`], ["Sources", srcList(f)]]
+      };
+    },
+    labels: () => [],
+    ranks: total => total >= 34000 ? "Royal Astronomer. Riccioli would hand you the pen." : total >= 26000 ? "Seasoned selenographer. Your atlas would sell." : total >= 16000 ? "Keen-eyed observer. The maria are friends now." : total >= 8000 ? "Apprentice at the eyepiece." : "Moonstruck. Try it with the grid on.",
+    summaryTitle: "Your lunar atlas",
+    fit,
+    load(tex) {
+      tex.encoding = THREE.sRGBEncoding; tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      globe.material.map = tex; globe.material.needsUpdate = true; this.ready = true;
+    }
+  };
+})();
+
+/* ======================================================================
+   SKY MODE — viewed from inside the celestial sphere.
+   ====================================================================== */
+const skyM = (() => {
+  const RS = 100;
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(80, 1, 0.1, 500);
+  const view = { yaw: 85 * D2R, pitch: 5 * D2R, fov: 80, offX: 0, offY: 0 };
+  const figs = new THREE.Group(), bords = new THREE.Group(), grid = new THREE.Group(), marks = new THREE.Group();
+  grid.visible = false; bords.visible = false;
+  scene.add(figs, bords, grid, marks);
+  const pin = dot(0x86cdf5), ans = dot(0xe6b968); pin.visible = ans.visible = false; scene.add(pin, ans);
+  let SKY = null, starMat = null;
+  const C = {}; // per-constellation computed data
+
+  const bvColor = bv => {
+    const st = [[-0.3, [0.62, 0.74, 1]], [0, [0.80, 0.87, 1]], [0.4, [1, 0.98, 0.95]], [0.8, [1, 0.92, 0.78]], [1.2, [1, 0.82, 0.6]], [1.9, [1, 0.68, 0.45]]];
+    if (bv <= st[0][0]) return st[0][1];
+    for (let i = 1; i < st.length; i++) if (bv <= st[i][0]) { const t = (bv - st[i - 1][0]) / (st[i][0] - st[i - 1][0]); return st[i - 1][1].map((c, k) => c + (st[i][1][k] - c) * t); }
+    return st[st.length - 1][1];
+  };
+  const insideC = (ra, dec, id) => {
+    const rings = SKY.bounds[id], ncp = SKY.meta[id][6] === 1; let c = 0;
+    for (const ring of rings) for (let i = 0; i < ring.length; i++) {
+      const [a1, d1] = ring[i], [a2, d2] = ring[(i + 1) % ring.length];
+      const da = wrap180(a2 - a1); if (!da) continue;
+      const t = wrap180(ra - a1) / da;
+      if (t >= 0 && t < 1 && d1 + (d2 - d1) * t > dec) c++;
+    }
+    return (c % 2 === 1) !== ncp;
+  };
+  const whichC = (ra, dec) => Object.keys(SKY.bounds).find(id => insideC(ra, dec, id));
+
+  const build = data => {
+    SKY = data;
+    const s = data.stars, n = s.length / 4, pos = new Float32Array(n * 3), col = new Float32Array(n * 3), size = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const v = vec(s[i * 4 + 1], s[i * 4], RS);
+      pos.set([v.x, v.y, v.z], i * 3);
+      col.set(bvColor(s[i * 4 + 3]), i * 3);
+      size[i] = 2 + (5.8 - s[i * 4 + 2]) * 1.9;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    g.setAttribute("size", new THREE.BufferAttribute(size, 1));
+    starMat = new THREE.ShaderMaterial({
+      uniforms: { scale: { value: 1 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      vertexShader: "attribute float size; attribute vec3 color; varying vec3 vC; uniform float scale; void main(){ vC=color; gl_PointSize=size*scale; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }",
+      fragmentShader: "varying vec3 vC; void main(){ float d=length(gl_PointCoord-0.5); float core=smoothstep(0.26,0.0,d); float halo=smoothstep(0.5,0.0,d)*0.45; float a=clamp(core+halo,0.0,1.0); gl_FragColor=vec4(vC*a,a); }"
+    });
+    scene.add(new THREE.Points(g, starMat));
+    // figures
+    const fp = [];
+    for (const id in data.lines) for (const seg of data.lines[id]) for (let i = 0; i < seg.length - 1; i++) fp.push(vec(seg[i][1], seg[i][0], RS * 0.995), vec(seg[i + 1][1], seg[i + 1][0], RS * 0.995));
+    figs.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(fp), new THREE.LineBasicMaterial({ color: 0x7f9ac4, transparent: true, opacity: 0.38 })));
+    // borders
+    const bp = [];
+    for (const id in data.bounds) for (const ring of data.bounds[id]) for (let i = 0; i < ring.length; i++) { const a = ring[i], b = ring[(i + 1) % ring.length]; bp.push(vec(a[1], a[0], RS * 0.996), vec(b[1], b[0], RS * 0.996)); }
+    bords.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(bp), new THREE.LineBasicMaterial({ color: 0x9a8a6a, transparent: true, opacity: 0.22 })));
+    // equatorial grid
+    for (let dec = -60; dec <= 60; dec += 30) { const p = []; for (let ra = 0; ra <= 360; ra += 2) p.push(vec(dec, ra, RS * 0.997)); grid.add(lineOf(p, 0x86cdf5, dec ? 0.16 : 0.38)); }
+    for (let ra = 0; ra < 360; ra += 30) { const p = []; for (let dec = -88; dec <= 88; dec += 2) p.push(vec(dec, ra, RS * 0.997)); grid.add(lineOf(p, 0x86cdf5, ra ? 0.16 : 0.38)); }
+    // per-constellation
+    for (const id in data.bounds) {
+      const m = data.meta[id];
+      C[id] = {
+        verts: data.bounds[id].flat().map(([a, d]) => vec(d, a)),
+        center: vec(m[3], m[2]), area: m[0], rank: m[1], ra: m[2], dec: m[3],
+        decMin: id === "Oct" ? -90 : m[4], decMax: m[6] ? 90 : m[5]
+      };
+    }
+    skyM.ready = true;
+  };
+
+  const availTan = () => { const p = panelBox(); return Math.min((H - p.y) / H, (W - p.x) / H); };
+  const dirOf = () => vec(view.pitch / D2R, view.yaw / D2R);
+  let lbls = [];
+
+  return {
+    id: "sky", scene, camera, view, ready: false, pool: STARS, grid, figs, bords,
+    brand: "Uranographer", unit: "Chart", legend: "the constellation",
+    help: "You're inside the sky looking out. Drag to look around, scroll or pinch to zoom. Click anywhere within the constellation's borders, then lock it in.",
+    home: () => ({ fov: 80, offX: 0, offY: 0 }),
+    north: () => ({ yaw: view.yaw, pitch: 62 * D2R, fov: 100 }),
+    south: () => ({ yaw: view.yaw, pitch: -62 * D2R, fov: 100 }),
+    apply(now, state) {
+      camera.fov = view.fov; camera.updateProjectionMatrix();
+      camera.position.set(0, 0, 0); camera.up.set(0, 1, 0); camera.lookAt(dirOf());
+      if (view.offX || view.offY) camera.setViewOffset(W, H, view.offX, view.offY, W, H); else camera.clearViewOffset();
+      if (starMat) starMat.uniforms.scale.value = renderer.getPixelRatio() * Math.min(2.2, Math.max(0.85, Math.sqrt(70 / view.fov)));
+      const s = RS * view.fov * D2R * 0.0065;
+      pin.scale.setScalar(s); ans.scale.setScalar(s * (1 + (state === "revealed" && !reduced ? 0.25 * Math.sin(now / 260) : 0)));
+    },
+    drag(dx, dy) {
+      const k = view.fov * D2R / H;
+      view.yaw += dx * k; view.pitch = Math.max(-89.5 * D2R, Math.min(89.5 * D2R, view.pitch + dy * k));
+    },
+    zoom(f) { view.fov = Math.max(18, Math.min(115, view.fov * f)); },
+    arrow(dx, dy) { const k = view.fov * D2R * 0.08; view.yaw += dx * k; view.pitch = Math.max(-89.5 * D2R, Math.min(89.5 * D2R, view.pitch + dy * k)); },
+    pick(ray) { return ray.ray.direction.clone().normalize(); },
+    readout(v, tag) {
+      const { lat, lon } = toLatLon(v), id = whichC(lon, lat), c = id && SKY.meta[id] ? STARS.find(s => s.id === id) : null;
+      return `${tag} <span>RA ${fmtRA(lon)} · Dec ${fmtDec(lat)}</span>`;
+    },
+    setPin(v) { if (!v) { pin.visible = false; return; } pin.position.copy(v.clone().multiplyScalar(RS * 0.99)); pin.visible = true; },
+    clear() { pin.visible = ans.visible = false; while (marks.children.length) marks.children.pop().geometry.dispose(); lbls.forEach(l => l.el.remove()); lbls = []; },
+    chips(f) {
+      const c = C[f.id], out = [`<span class="chip">${fmt(Math.round(c.area))} sq°</span>`];
+      if (f.zodiac) out.push(`<span class="chip">Zodiac</span>`);
+      if (c.dec < -25) out.push(`<span class="chip far">Southern sky</span>`);
+      else if (c.dec > 45) out.push(`<span class="chip far">Far north</span>`);
+      return out.join("");
+    },
+    score(f, gv) {
+      const { lat, lon } = toLatLon(gv), c = C[f.id];
+      const inside = insideC(lon, lat, f.id);
+      let d = 0;
+      if (!inside) { let best = Math.PI; for (const v of c.verts) { const a = gv.angleTo(v); if (a < best) best = a; } d = best / D2R; }
+      const pts = inside ? MAX : Math.round(MAX * Math.exp(-d / 10));
+      const moons = Math.round(d / 0.52);
+      const text = inside ? "Inside the constellation's borders" : `${d.toFixed(1)}° outside the borders, about ${fmt(moons)} full-Moon widths`;
+      return { pts, d, text, log: inside ? "inside" : `${d.toFixed(1)}°`, inside };
+    },
+    reveal(f, gv, res) {
+      const c = C[f.id];
+      // boundary + figure in gold
+      for (const ring of SKY.bounds[f.id]) { const p = ring.map(([a, d]) => vec(d, a, RS * 0.993)); p.push(p[0]); marks.add(lineOf(p, 0xe6b968, 0.85)); }
+      const fp = []; for (const seg of SKY.lines[f.id] || []) for (let i = 0; i < seg.length - 1; i++) fp.push(vec(seg[i][1], seg[i][0], RS * 0.992), vec(seg[i + 1][1], seg[i + 1][0], RS * 0.992));
+      marks.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(fp), new THREE.LineBasicMaterial({ color: 0xe6b968, transparent: true, opacity: 0.95 })));
+      ans.position.copy(c.center.clone().multiplyScalar(RS * 0.99)); ans.visible = !res.inside;
+      if (!res.inside) {
+        let near = c.verts[0], best = 9; for (const v of c.verts) { const a = gv.angleTo(v); if (a < best) { best = a; near = v; } }
+        marks.add(lineOf(slerpArc(gv, near, RS * 0.99, 0), 0xebe6da, 1, 0.9));
+      }
+      // labels
+      const add = (text, v, big) => { const el = document.createElement("div"); el.className = "lbl" + (big ? " big" : ""); el.textContent = text; $("labels").appendChild(el); lbls.push({ el, v: v.clone().multiplyScalar(RS) }); };
+      add(f.name, c.center, true);
+      (SKY.named[f.id] || []).slice(0, 4).forEach(([nm, ra, dec]) => add(nm, vec(dec, ra), false));
+      // frame
+      const fovFor = (cv, withGuess) => {
+        let m = 0; for (const v of c.verts) m = Math.max(m, cv.angleTo(v)); if (withGuess) m = Math.max(m, cv.angleTo(gv));
+        return 2 * Math.atan(Math.tan(Math.min(m * 1.12, 80 * D2R)) / availTan()) / D2R;
+      };
+      // Frame the pin and the constellation together when that fits; otherwise frame the constellation.
+      let centerV = res.inside ? c.center : gv.clone().normalize().add(c.center).normalize();
+      let fov = fovFor(centerV, !res.inside);
+      if (fov > 105) { centerV = c.center; fov = fovFor(centerV, false); }
+      fov = Math.max(30, Math.min(110, fov));
+      const { lat, lon } = toLatLon(centerV);
+      return { yaw: lon * D2R, pitch: lat * D2R, fov };
+    },
+    notes(f) {
+      const c = C[f.id], bright = (SKY.named[f.id] || [])[0];
+      const raH = ((c.ra + 360) % 360) / 15, month = Math.round(((raH - 6) / 2 + 24) % 12) % 12;
+      const nLim = Math.round(90 + c.decMin), sLim = Math.round(c.decMax - 90);
+      const lat = x => x >= 90 ? "the North Pole" : x <= -90 ? "the South Pole" : `${Math.abs(x)}°${x >= 0 ? "N" : "S"}`;
+      // Viewing from California (central latitude ~36.8°N; San Diego 32.7°N).
+      const CA = 36.8, SD = 32.7;
+      const peak = Math.round(90 - Math.abs(CA - Math.max(c.decMin, Math.min(c.decMax, c.dec))));
+      const dst = month >= 2 && month <= 9 ? " (10 p.m. daylight time)" : "";
+      let ca;
+      if (c.decMax < SD - 90) ca = "Never rises anywhere in California. You would need to travel south of about 30°N to see it.";
+      else if (c.decMax < CA - 90) ca = `Below the horizon for most of California. From San Diego its northern edge just skims the southern horizon on ${MONTHS[month]} evenings.`;
+      else if (c.decMin > 90 - CA) ca = `Never sets: it circles Polaris all night, all year. Highest on ${MONTHS[month]} evenings around 9 p.m.${dst}.`;
+      else if (c.decMin < CA - 90) ca = `Only the northern part clears the horizon. Look low in the south on ${MONTHS[month]} evenings around 9 p.m.${dst}.`;
+      else ca = `${MONTHS[month]} evenings around 9 p.m.${dst}, when it reaches about ${peak}° above the ${c.dec > CA ? "northern" : "southern"} horizon.`;
+      const facts = [
+        ["IAU code", f.id, true],
+        ["Area", `${fmt(Math.round(c.area))} sq°, ${ordinal(c.rank)} of 88`, true],
+        ["From California", ca],
+        ["Fully visible", nLim >= 90 && sLim <= -90 ? "From everywhere on Earth" : `Between ${lat(sLim)} and ${lat(nLim)}`]
+      ];
+      if (bright) facts.splice(2, 0, ["Brightest", `${bright[0]}, magnitude ${bright[3].toFixed(2)}`]);
+      const names = `<ul class="names">${f.names.map(([cu, nm, gl]) => `<li><span class="cu">${cu}</span><span class="nm">${nm}</span><span class="gl">${gl}</span></li>`).join("")}</ul>`;
+      return {
+        kind: `Constellation${f.zodiac ? " · Zodiac" : ""} · ${c.dec >= 0 ? "Northern" : "Southern"} sky`,
+        alt: f.meaning,
+        facts,
+        prose: [["Names across cultures", names], ["The science", `<p>${f.science}</p>`], ["The story", `<p>${f.story}</p>`], ["Sources", srcList(f)]]
+      };
+    },
+    labels: () => lbls,
+    ranks: total => total >= 34000 ? "Royal Astronomer. You could chart the heavens by hand." : total >= 26000 ? "Practiced uranographer. Navigators would trust you." : total >= 16000 ? "Keen-eyed stargazer. The figures are falling into place." : total >= 8000 ? "Apprentice sky-watcher." : "Lost among the stars. Try with Borders on.",
+    summaryTitle: "Your star chart",
+    build
+  };
+})();
+
+const MODES = { moon: moonM, sky: skyM };
+let mode = moonM;
+
+/* ======================================================================
+   Resize, tween, input
+   ====================================================================== */
+const resize = () => {
+  W = stage.clientWidth; H = stage.clientHeight;
+  renderer.setSize(W, H, false);
+  for (const m of Object.values(MODES)) { m.camera.aspect = W / H; m.camera.updateProjectionMatrix(); }
+};
+new ResizeObserver(resize).observe(stage); resize();
+moonM.view.dist = moonM.fit();
+
+let tween = null;
+const easeIO = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const goTo = (target, ms = 1100) => {
+  const v = mode.view, from = { ...v }, to = { ...v, ...target };
+  if ("yaw" in target) { let dy = (to.yaw - from.yaw) % (Math.PI * 2); if (dy > Math.PI) dy -= Math.PI * 2; if (dy < -Math.PI) dy += Math.PI * 2; to.yaw = from.yaw + dy; }
+  tween = { m: mode, from, to, t0: performance.now(), ms: reduced ? 1 : ms };
+};
+const offsets = () => { const p = panelBox(); return { offX: p.x / 2, offY: p.y / 2 }; };
+
+const ptrs = new Map();
+let downAt = null, moved = false, pinchD = 0, hoverQueued = null;
+const ray = new THREE.Raycaster();
+const rayAt = (x, y) => { const r = canvas.getBoundingClientRect(); ray.setFromCamera(new THREE.Vector2((x - r.left) / r.width * 2 - 1, -((y - r.top) / r.height) * 2 + 1), mode.camera); return ray; };
+canvas.addEventListener("pointerdown", e => {
+  canvas.setPointerCapture(e.pointerId);
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (ptrs.size === 1) { downAt = { x: e.clientX, y: e.clientY }; moved = false; }
+  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinchD = Math.hypot(a.x - b.x, a.y - b.y); moved = true; }
+});
+canvas.addEventListener("pointermove", e => {
+  if (!ptrs.has(e.pointerId)) { if (e.pointerType === "mouse") hoverQueued = { x: e.clientX, y: e.clientY }; return; }
+  const prev = ptrs.get(e.pointerId);
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (ptrs.size === 1) {
+    if (!moved && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 6) { moved = true; canvas.classList.add("dragging"); }
+    if (moved) { tween = null; mode.drag(e.clientX - prev.x, e.clientY - prev.y); }
+  } else if (ptrs.size === 2) {
+    const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
+    if (pinchD) { tween = null; mode.zoom(pinchD / d); }
+    pinchD = d;
+  }
+});
+const endPtr = e => {
+  if (!ptrs.has(e.pointerId)) return;
+  const single = ptrs.size === 1;
+  ptrs.delete(e.pointerId);
+  canvas.classList.remove("dragging");
+  if (e.type === "pointerup" && single && !moved && state === "guessing") { mode.camera.updateMatrixWorld(); const v = mode.pick(rayAt(e.clientX, e.clientY)); if (v) placePin(v); }
+  if (ptrs.size < 2) pinchD = 0;
+};
+canvas.addEventListener("pointerup", endPtr);
+canvas.addEventListener("pointercancel", endPtr);
+canvas.addEventListener("pointerleave", () => { if (!ptrs.size) showReadout(null); });
+canvas.addEventListener("wheel", e => { e.preventDefault(); tween = null; mode.zoom(Math.exp(e.deltaY * 0.0015)); }, { passive: false });
+addEventListener("keydown", e => {
+  if (e.target.closest && e.target.closest("button") && (e.key === "Enter" || e.key === " ")) return;
+  const sky = mode === skyM;
+  if (e.key === "ArrowLeft") mode.arrow(sky ? 1 : 1, 0); else if (e.key === "ArrowRight") mode.arrow(-1, 0);
+  else if (e.key === "ArrowUp") mode.arrow(0, 1); else if (e.key === "ArrowDown") mode.arrow(0, -1);
+  else if (e.key === "+" || e.key === "=") mode.zoom(0.85); else if (e.key === "-") mode.zoom(1.18);
+  else if (e.key === "Enter") { e.preventDefault(); if (state === "guessing" && guess) lockIn(); else if (state === "revealed") next(); return; }
+  else return;
+  tween = null; e.preventDefault();
+});
+
+const showReadout = (v, tag) => {
+  if (!v) { $("readout").innerHTML = guess && state === "guessing" ? mode.readout(guess, "pin") : ""; return; }
+  $("readout").innerHTML = mode.readout(v, tag || "cursor");
+};
+
+/* ======================================================================
+   Game flow
+   ====================================================================== */
+let state = "loading", rounds = [], idx = 0, results = [], guess = null;
+const total = () => results.reduce((s, r) => s + r.pts, 0);
+
+const syncChrome = () => {
+  $("brand").textContent = mode.brand;
+  document.querySelectorAll(".modes button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.mode === mode.id)));
+  document.querySelectorAll("#controls [data-for]").forEach(b => { b.hidden = b.dataset.for !== mode.id; });
+  $("b-grid").setAttribute("aria-pressed", String(mode.grid.visible));
+  $("p-help").textContent = mode.help;
+  $("n-legend").textContent = mode.legend;
+  $("loading").hidden = mode.ready;
+};
+
+const setMode = (id, restore) => {
+  if (tween) tween = null;
+  if (mode) { mode.clear(); mode.view.offX = mode.view.offY = 0; }
+  mode = MODES[id];
+  store.set("selenographer-mode", id);
+  $("labels").innerHTML = "";
+  syncChrome();
+  if (!mode.ready) { state = "loading"; $("prompt").hidden = $("controls").hidden = true; $("notes").hidden = $("summary").hidden = true; return; }
+  $("prompt").hidden = false;
+  if (restore) restore(); else newGame();
+};
+
+const newGame = () => {
+  const by = t => shuffle(mode.pool.filter(f => f.tier === t));
+  rounds = [...by(1).slice(0, 3), ...by(2).slice(0, 3), ...by(3).slice(0, 2)];
+  idx = 0; results = [];
+  $("summary").hidden = true;
+  startRound();
+};
+
+const startRound = () => {
+  const f = rounds[idx];
+  state = "guessing"; guess = null;
+  mode.clear();
+  $("notes").hidden = true; document.body.classList.remove("revealed");
+  $("controls").hidden = false; $("prompt").hidden = false;
+  $("t-round").textContent = `${mode.unit} ${idx + 1} / ${ROUNDS}`;
+  $("t-score").textContent = fmt(total());
+  $("p-name").textContent = f.name;
+  const alt = f.alt || f.meaning;
+  $("p-alt").hidden = !alt; $("p-alt").textContent = alt || "";
+  $("p-meta").innerHTML = mode.chips(f);
+  updateLock();
+  canvas.classList.add("aim");
+  goTo(mode.home(), 900);
+  showReadout(null);
+  snapshot();
+};
+
+const placePin = v => {
+  guess = v.clone().normalize();
+  mode.setPin(guess);
+  updateLock();
+  showReadout(guess, "pin");
+};
+const updateLock = () => { const b = $("b-lock"); b.disabled = !guess; b.textContent = guess ? "Lock in guess" : "Drop a pin"; };
+
+const lockIn = () => {
+  if (state !== "guessing" || !guess) return;
+  const f = rounds[idx], res = mode.score(f, guess);
+  results.push({ f, pts: res.pts, log: res.log });
+  state = "revealed";
+  canvas.classList.remove("aim");
+
+  const pts = res.pts;
+  $("n-verdict").textContent = pts === MAX ? (mode === skyM ? "Right on target" : f.site ? "Right on the spot" : "Direct hit") : pts > 3500 ? "Close" : pts > 1500 ? "In the neighborhood" : pts > 300 ? "Wrong region" : "Way off";
+  $("n-pts").textContent = fmt(pts);
+  $("n-dist").textContent = res.text;
+  const n = mode.notes(f);
+  $("n-kind").textContent = n.kind;
+  $("n-name").textContent = f.name;
+  $("n-alt").hidden = !n.alt; $("n-alt").textContent = n.alt;
+  $("n-facts").innerHTML = n.facts.map(([k, v, num]) => `<dt>${k}</dt><dd${num ? ' class="num"' : ""}>${v}</dd>`).join("");
+  $("n-prose").innerHTML = n.prose.map(([h, body]) => `<h3>${h}</h3>${body}`).join("");
+  $("b-next").textContent = idx + 1 < ROUNDS ? `Next ${mode.unit.toLowerCase()}` : "See your results";
+  $("controls").hidden = true;
+  $("notes").hidden = false; $("notes").scrollTop = 0;
+  document.body.classList.add("revealed");
+  $("t-score").textContent = fmt(total());
+  $("readout").innerHTML = "";
+  const frame = mode.reveal(f, guess, res);
+  goTo({ ...frame, ...offsets() }, 1300);
+  $("b-next").focus({ preventScroll: true });
+  snapshot();
+};
+
+const next = () => { if (state !== "revealed") return; idx++; if (idx < ROUNDS) startRound(); else finish(); };
+
+const finish = () => {
+  state = "done";
+  mode.clear();
+  $("notes").hidden = true; document.body.classList.remove("revealed");
+  $("controls").hidden = true; $("prompt").hidden = true;
+  const t = total(), key = `selenographer-best-${mode.id}`;
+  const best = Math.max(t, +(store.get(key) || 0));
+  store.set(key, String(best));
+  $("s-title").textContent = mode.summaryTitle;
+  $("s-total").textContent = fmt(t);
+  $("s-best").textContent = best > t ? `· best ${fmt(best)}` : "· your best yet";
+  $("s-rank").textContent = mode.ranks(t);
+  $("s-log").innerHTML = results.map(r => `<tr><td>${r.f.name}</td><td class="n">${r.log}</td><td class="n">${fmt(r.pts)}</td></tr>`).join("");
+  $("b-switch").textContent = mode === moonM ? "Try the stars" : "Try the Moon";
+  $("summary").hidden = false;
+  $("b-again").focus({ preventScroll: true });
+  goTo({ ...mode.home(), offX: 0, offY: 0 }, 1600);
+  snapshot();
+};
+
+$("b-lock").onclick = lockIn;
+$("b-next").onclick = next;
+$("b-again").onclick = newGame;
+$("b-switch").onclick = () => setMode(mode === moonM ? "sky" : "moon");
+document.querySelectorAll(".modes button").forEach(b => b.onclick = () => { if (b.dataset.mode !== mode.id) setMode(b.dataset.mode); });
+$("b-near").onclick = () => goTo({ ...moonM.home(), ...offsets() }, 800);
+$("b-far").onclick = () => goTo({ ...moonM.far(), ...offsets() }, 1000);
+$("b-north").onclick = () => goTo(skyM.north(), 900);
+$("b-south").onclick = () => goTo(skyM.south(), 900);
+$("b-grid").onclick = e => { mode.grid.visible = !mode.grid.visible; e.currentTarget.setAttribute("aria-pressed", String(mode.grid.visible)); };
+$("b-fig").onclick = e => { skyM.figs.visible = !skyM.figs.visible; e.currentTarget.setAttribute("aria-pressed", String(skyM.figs.visible)); };
+$("b-bounds").onclick = e => { skyM.bords.visible = !skyM.bords.visible; e.currentTarget.setAttribute("aria-pressed", String(skyM.bords.visible)); };
+
+/* ======================================================================
+   Loop
+   ====================================================================== */
+const tmp = new THREE.Vector3();
+const loop = now => {
+  if (tween) {
+    const t = Math.min(1, (now - tween.t0) / tween.ms), k = easeIO(t);
+    for (const key in tween.to) tween.m.view[key] = tween.from[key] + (tween.to[key] - tween.from[key]) * k;
+    if (t >= 1) tween = null;
+  } else if (state === "done" && !reduced) {
+    mode.view.yaw += mode === moonM ? -0.0012 : 0.0006;
+  }
+  mode.apply(now, state);
+  mode.scene.updateMatrixWorld();
+  mode.camera.updateMatrixWorld();
+  if (hoverQueued && !ptrs.size) {
+    if (state === "guessing") { const v = mode.pick(rayAt(hoverQueued.x, hoverQueued.y)); showReadout(v || null); }
+    hoverQueued = null;
+  }
+  const fwd = mode.camera.getWorldDirection(new THREE.Vector3());
+  for (const l of mode.labels()) {
+    tmp.copy(l.v);
+    if (tmp.clone().normalize().dot(fwd) < 0.05) { l.el.style.display = "none"; continue; }
+    tmp.project(mode.camera);
+    const x = (tmp.x + 1) / 2 * W, y = (1 - tmp.y) / 2 * H;
+    l.el.style.display = "";
+    l.el.style.transform = `translate(${Math.round(x + 8)}px, ${Math.round(y - 8)}px)`;
+  }
+  renderer.render(mode.scene, mode.camera);
+  requestAnimationFrame(loop);
+};
+
+/* ======================================================================
+   Boot + persistence across live updates
+   ====================================================================== */
+const snapshot = () => window.claude?.hot?.snapshot?.(() => ({ mode: mode.id, names: rounds.map(f => f.name), done: results.map(r => ({ name: r.f.name, pts: r.pts, log: r.log })) }));
+
+const start = data => {
+  const want = data?.mode || store.get("selenographer-mode") || "moon";
+  const restoreFor = id => {
+    if (!data || data.mode !== id || !data.names) return null;
+    const pool = MODES[id].pool, byName = n => pool.find(f => f.name === n);
+    if (!data.names.every(byName)) return null;
+    return () => {
+      rounds = data.names.map(byName);
+      results = (data.done || []).filter(r => byName(r.name)).map(r => ({ ...r, f: byName(r.name) }));
+      idx = results.length;
+      if (idx < ROUNDS) startRound(); else finish();
+    };
+  };
+  const ready = id => { if (mode.id === id && state === "loading") setMode(id, restoreFor(id)); else syncChrome(); };
+  mode = MODES[want] || moonM;
+  syncChrome();
+  $("prompt").hidden = $("controls").hidden = true;
+  // Load the map as a same-origin blob so WebGL never sees a cross-origin image.
+  const imgFrom = src => new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = src; });
+  fetch("moon.jpg").then(r => { if (!r.ok) throw new Error(r.status); return r.blob(); })
+    .then(b => imgFrom(URL.createObjectURL(b)))
+    .catch(() => imgFrom("moon.jpg"))
+    .then(im => { const tex = new THREE.Texture(im); tex.needsUpdate = true; moonM.load(tex); ready("moon"); })
+    .catch(() => { if (mode === moonM) $("loading").textContent = "The lunar map didn't load. Reload the page to try again."; });
+  fetch("sky-data.json").then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(d => { skyM.build(d); ready("sky"); })
+    .catch(() => { if (mode === skyM) $("loading").textContent = "The star catalog didn't load. Reload the page to try again."; });
+  requestAnimationFrame(loop);
+};
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
+
+</body></html>
